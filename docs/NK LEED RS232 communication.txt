@@ -1,0 +1,81 @@
+DIGITAL FRONT END für NG LEED
+
+Definition of interface: 
+ 
+Data transfer between host PC and controller via USB, internally RS232:
+Serial communication, 8bit, 1stop, no parity, 38.400Baud
+
+
+Frame: 	| 1  | 2 | 3     | 4     | 5  | 6  | 
+	|STX |ID |1.Byte |2.Byte |BCC |ETX | 
+	|$02 |   | MSB   | LSB   |    |$03 | 
+		^ 		   ^ 
+ 	ID $20..$7f--' 		'-- XOR Byte 1..4 
+
+6 bit packages are exchanged, the communication is controlled by master (PC). Slave only reacts to query from master. 
+Once slave receives a package with correct frame and checksum, it immediately responds with content to the respective ID that was sent. 
+ 
+The attribution of the content bytes (byte 3+4) is defined by the ID byte (byte 2).
+Content bytes are $hex, 16-bit, MSB first. The following IDs are assigned: 
+
+ID	Sender 	Content byte3+4		Reply 	Inhalt 
+$20 	Master 	arbitrary		Slave 	Slave Status 
+$21 	Master 	Dig.OUTbits (want) 	Slave 	Dig.OUT bits (is) 
+
+$31 	Master 	DAC_1 (want) 		Slave 	DAC_1 (is) 
+.. 
+$3A 	Master 	DAC_10 (want) 		Slave 	DAC_10 (is) 
+
+$41 	Master 	arbitrary		Slave 	ADC_1 (is) 
+.. 
+$49 	Master 	arbitrary		Slave 	ADC_9 (is) 
+	
+ 
+
+Slave Status Bits: 
+ $01: /MON 		"1"=NORMAL "0"=MONITOR 
+ $02: SHUTDOWN 		"1"=SHUTDOWN 
+ $04: ENABLE 		"1"=ENABLED 
+ $08: 15V_OK 		"1"=OK 
+ $10: 15VHV_OK 		"1"=OK 
+ $20: SAFETY SWITCH 	"1"=OPEN 
+ $40: free 
+ $80: free 
+
+Dig.OUT bits: 
+$40: LEED/AUGER 	“0”=extern, “1”=intern 
+$80: BEAM INT/EXT 	“0”=extern, “1”=intern 
+
+DAC table: 
+ $31:DAC_0 L2_SET
+ $32:DAC_1 WEH_SET
+ $33:DAC_2 L13_SET 
+ $34:DAC_3 SCR_SET
+ $35:DAC_4 RET_SET_INT
+ $36:DAC_5 BEAM_SET_INT
+ $37:DAC_6 IFIL_SET1
+ $38:DAC_7 EMI_SET
+ $39:DAC_8 EMI_MAX
+
+ADC table: 
+ $41:ADC_0 L13_MON
+ $42:ADC_1 EMI_MON
+ $43:ADC_2 L2_MON 
+ $44:ADC_3 BEAM_MON
+ $45:ADC_4 I0_MON
+ $46:ADC_5 RET_MON
+ $47:ADC_6 SCR_MON
+ $48:ADC_7 IFIL_MON
+ $49:ADC_8 WEH_MON
+
+If there is no valid frame transmitted for 1 sec, LED 1 is turned on, all DAC are set to $0000 and both Dig.OUT bits are set to „0“. 
+
+Jumper JP3 can be set for testing and disables the HV plug interlock.
+
+Jumper JP4 is planned for diagnostics and currently unused, but is output in status byte.
+
+Conversion for all analog in and outs:
+$0000 = 0 V 
+$FFFF= 10.240mV 
+
+ 
