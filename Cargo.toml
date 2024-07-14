@@ -1,0 +1,46 @@
+# [[bin]]
+# name = "sniff_ui"
+# path = "./src/sniff_ui.rs"
+
+# [[bin]]
+# name = "events"
+# path = "./src/event_logger.rs"
+
+# [[bin]]
+# name = "ui"
+# path = "./src/ui.rs"
+
+# [[bin]]
+# name = "echo"
+# path = "./src/echo.rs"
+
+# [[bin]]
+# name = "cam_test"
+# path = "./src/cam_test.rs"
+
+# [[bin]]
+# name = "motor_test"
+# path = "./src/motor_test.rs"
+
+
+[package]
+name = "leed_controller"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serialport = "4.3.0"
+log = "0.4.20"
+colored = "2.1.0"
+ratatui = "0.26.1"
+crossterm = "0.27.0"
+# pyo3 = "0.20.0"
+serde = {version = "1.0", features = ['derive']}
+serde_json = "1.0"
+env_logger = "0.11.3"
+chrono = "0.4"
+
+[build-dependencies]
+cc = "1.0"
