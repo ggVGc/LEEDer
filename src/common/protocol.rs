@@ -1,4 +1,4 @@
-use log::error;
+use log::{error, info};
 
 #[derive(Debug, Clone, Copy)]
 pub enum MessageTag {
@@ -66,7 +66,10 @@ impl Message {
             0x47 => Some(MessageTag::Arbitrary(m.id)),
             0x49 => Some(MessageTag::Arbitrary(m.id)),
 
-            _ => None,
+            _ => {
+                info!("Unhandled message: {:?}", m);
+                None
+            }
         }?;
 
         Some(Message {
@@ -86,6 +89,9 @@ impl Message {
             MessageTag::Control(Control::IFIL_SET1) => 0x37,
             MessageTag::Control(Control::EMI_SET) => 0x38,
             MessageTag::Control(Control::EMI_MAX) => 0x39,
+            MessageTag::ADC(1) => 0x42,
+            MessageTag::ADC(2) => 0x45,
+            MessageTag::ADC(3) => 0x48,
             msg => {
                 error!("Unimplemented: {:?}", msg);
                 0x36
@@ -136,7 +142,10 @@ impl RawMessage {
                     None
                 }
             }
-            _ => None,
+            _ => {
+                error!("Received unparseable message");
+                None
+            }
         }
     }
 

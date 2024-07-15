@@ -1,5 +1,6 @@
 use super::protocol::{Control, Message, MessageTag};
 
+use log::{info, error};
 use std::collections::VecDeque;
 use std::sync::mpsc;
 
@@ -66,7 +67,7 @@ impl ControlValue {
             RangeValue::Value(max_value, unit) => {
                 let value = ratio * max_value;
                 return format!("{} {}", value, unit.to_string()).to_string();
-            },
+            }
             RangeValue::MinMaxValue(min_value, max_value, unit) => {
                 let value = min_value + ratio * (max_value - min_value);
                 return format!("{} {}", value, unit.to_string()).to_string();
@@ -152,17 +153,47 @@ impl Controls {
                 63999,
                 RangeValue::Value(1000.0, RangeUnit::eV),
             ),
-            wehnheit: ControlValue::new("Wehnheit", Control::WEH_SET, 63999, RangeValue::Value(100.0, RangeUnit::Volt)),
-            emission: ControlValue::new("Emission", Control::EMI_SET, 16959, RangeValue::Value(50.0, RangeUnit::MicroAmpere)),
-            filament: ControlValue::new("Filament", Control::IFIL_SET1, 63999, RangeValue::Value(2.7, RangeUnit::Ampere)),
-            screen: ControlValue::new("Screen", Control::SCR_SET, 63999, RangeValue::Value(7.0, RangeUnit::KiloVolt)),
+            wehnheit: ControlValue::new(
+                "Wehnheit",
+                Control::WEH_SET,
+                63999,
+                RangeValue::Value(100.0, RangeUnit::Volt),
+            ),
+            emission: ControlValue::new(
+                "Emission",
+                Control::EMI_SET,
+                16959,
+                RangeValue::Value(50.0, RangeUnit::MicroAmpere),
+            ),
+            filament: ControlValue::new(
+                "Filament",
+                Control::IFIL_SET1,
+                63999,
+                RangeValue::Value(2.7, RangeUnit::Ampere),
+            ),
+            screen: ControlValue::new(
+                "Screen",
+                Control::SCR_SET,
+                63999,
+                RangeValue::Value(7.0, RangeUnit::KiloVolt),
+            ),
             // Lenses:
             // Offset: -20 - 100V
             // L2 Gain: 0 - 1.0
             // L13 Gain: 0 - 2.5
             // Output value: gain * 1000 + offset
-            lens2: ControlValue::new("Lens 2", Control::L2_SET, 23734, RangeValue::MinMaxValue(-20.0, 1100.0, RangeUnit::Volt)),
-            lens1_3: ControlValue::new("Lens 1/3", Control::L13_SET, 55522, RangeValue::MinMaxValue(-20.0, 2500.0, RangeUnit::Volt)),
+            lens2: ControlValue::new(
+                "Lens 2",
+                Control::L2_SET,
+                23734,
+                RangeValue::MinMaxValue(-20.0, 1100.0, RangeUnit::Volt),
+            ),
+            lens1_3: ControlValue::new(
+                "Lens 1/3",
+                Control::L13_SET,
+                55522,
+                RangeValue::MinMaxValue(-20.0, 2500.0, RangeUnit::Volt),
+            ),
             suppressor: ControlValue::new(
                 "Suppressor",
                 Control::RET_SET_INT,
@@ -176,6 +207,7 @@ impl Controls {
 pub struct Controller {
     pub current: Current,
     pub controls: Controls,
+    adc_counter: u8,
 }
 
 impl Controller {
@@ -183,6 +215,18 @@ impl Controller {
         Self {
             current: Current::new(),
             controls: Controls::new(),
+            adc_counter: 0,
+        }
+    }
+
+    pub fn update_currents(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
+        match send_control_change(MessageTag::ADC(self.adc_counter + 1), 0, sender) {
+            Ok(_) => {
+                self.adc_counter = (self.adc_counter + 1) % 3;
+            }
+            Err(err) => {
+                error!("Query of current failed: {:?}", err);
+            }
         }
     }
 
