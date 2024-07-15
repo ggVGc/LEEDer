@@ -5,7 +5,26 @@ Adjusting beam energy also changes:
 = Lenses =
   - Offset is simply added
   - Gain is multiplied by beam energy
-
+  - Lens gain 0, no lens_set output
+  - L1/3gain=2.5, offset=0:
+    - │Beam Energy: 100 eV  (6399 / 63999)                                                                                                                                                                                                     │
+      │Lens 1/3 Set: 239.66138 V  (5721 / 55522)
+    - │Beam Energy: 500 eV  (31999 / 63999)                                                                                                                                                                                                    │
+      │Lens 1/3 Set: 1201.5115 V  (26913 / 55522)
+    - │Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+      │Lens 1/3 Set: 2403.8242 V  (53403 / 55522) 
+  - L1/3 gain=1.0, offset=0:
+      │Beam Energy: 99.98593 eV  (6399 / 63999)                                                                                                                                                                                                     │
+      │Lens 1/3 Set: 95.4202 V  (2543 / 55522)
+  - L2 gain=0.5, offset=0:
+    - │Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+      │Lens 2 Set: 499.98315 V  (11019 / 23734) 
+  - L2 gain=0.5, offset=-20:
+    - │Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+      │Lens 2 Set: 479.97473 V  (10595 / 23734)                                                                                                                                                                                                     │
+    - │Beam Energy: 200 eV  (12799 / 63999)                                                                                                                                                                                                    │
+      │Lens 2 Set: 79.99495 V  (2119 / 23734)
+    
 = Suppressor =
   - Always function of beam energy
   - lowest (10%) when beam energy is 0, regardless of suppressor setting.
