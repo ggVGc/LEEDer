@@ -1,0 +1,42 @@
+Adjusting beam energy also changes:
+  - Suppressor
+  - Lens gains (both)
+
+= Lenses =
+  - Offset is simply added
+  - Gain is multiplied by beam energy
+
+= Suppressor =
+  - Always function of beam energy
+  - lowest (10%) when beam energy is 0, regardless of suppressor setting.
+  - Highest (110%) when max beam energy (1000 eV)
+  - Supp: 0% => 
+    - Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+      Suppressor: 19.088326 %  (3199 / 35199) 
+    - Beam Energy: 500 eV  (31999 / 63999)                                                                                                                                                                                                    │
+      Suppressor: 14.542743 %  (1599 / 35199)
+    - Beam Energy: 250 eV  (15999 / 63999)                                                                                                                                                                                                   │
+      Suppressor: 12.269951 %  (799 / 35199) 
+  - Supp: 60% => 
+    - Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+      Suppressor: 64.54416 %  (19199 / 35199)
+    - Beam Energy: 500 eV  (31999 / 63999)                                                                                                                                                                                                    │
+      Suppressor: 37.27066 %  (9599 / 35199)  
+  - Supp: 55% => 
+    - Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+      Suppressor: 59.998577 %  (17599 / 35199)  
+  - Supp: 50% => 
+      - Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+        Suppressor: 55.452995 %  (15999 / 35199) 
+      - Beam Energy: 500 eV  (31999 / 63999)                                                                                                                                                                                                    │
+        Suppressor: 32.725075 %  (7999 / 35199)  
+  - Supp: 100% => 
+    -  Beam Energy: 500 eV  (31999 / 63999)                                                                                                                                                                                                    │
+       Suppressor: 55.452995 %  (15999 / 35199) 
+    - Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+      Suppressor: 100.90883 %  (31999 / 35199) 
+  - Supp: 110% => 
+    - Beam Energy: 500 eV  (31999 / 63999)                                                                                                                                                                                                    │
+      Suppressor: 59.998577 %  (17599 / 35199)
+    - Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
+      Suppressor: 110 %  (35199 / 35199) 
