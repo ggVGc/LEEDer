@@ -1,15 +1,16 @@
 use super::protocol::{Control, Message, MessageTag};
 
-use log::{info, error};
+use log::error;
 use std::collections::VecDeque;
 use std::sync::mpsc;
+use std::time::{Duration, SystemTime};
 
-enum RangeUnit {
+pub enum RangeUnit {
     Ampere,
     MicroAmpere,
     Volt,
     KiloVolt,
-    eV,
+    ElectronVolt,
     Percentage,
 }
 
@@ -20,7 +21,7 @@ impl RangeUnit {
             RangeUnit::MicroAmpere => "uA",
             RangeUnit::Volt => "V",
             RangeUnit::KiloVolt => "kV",
-            RangeUnit::eV => "eV",
+            RangeUnit::ElectronVolt => "eV",
             RangeUnit::Percentage => "%",
         }
         .to_string()
@@ -34,6 +35,7 @@ pub enum RangeValue {
 
 pub struct ControlValue {
     pub value: i32,
+    default: i32,
     domain_max: i32,
     pub name: String,
     range_max: RangeValue,
@@ -103,12 +105,26 @@ impl ControlValue {
         let value = self.next(adjustment);
         send_control_change(MessageTag::Control(self.control), value, sender)
     }
+
+    pub fn send_default(
+        &self,
+        sender: &mpsc::Sender<[u8; 6]>,
+    ) -> Result<(), mpsc::SendError<[u8; 6]>> {
+        send_control_change(MessageTag::Control(self.control), self.default, sender)
+    }
 }
 
 impl ControlValue {
-    pub fn new(name: &str, control: Control, domain_max: i32, range_max: RangeValue) -> Self {
+    pub fn new(
+        name: &str,
+        default: i32,
+        control: Control,
+        domain_max: i32,
+        range_max: RangeValue,
+    ) -> Self {
         Self {
             value: 0,
+            default,
             control,
             domain_max,
             name: name.to_string(),
@@ -149,30 +165,35 @@ impl Controls {
         Self {
             beam_energy: ControlValue::new(
                 "Beam energy",
+                3500,
                 Control::BEAM_SET_INT,
                 63999,
-                RangeValue::Value(1000.0, RangeUnit::eV),
+                RangeValue::Value(1000.0, RangeUnit::ElectronVolt),
             ),
             wehnheit: ControlValue::new(
                 "Wehnheit",
+                0,
                 Control::WEH_SET,
                 63999,
                 RangeValue::Value(100.0, RangeUnit::Volt),
             ),
             emission: ControlValue::new(
                 "Emission",
+                16959,
                 Control::EMI_SET,
                 16959,
                 RangeValue::Value(50.0, RangeUnit::MicroAmpere),
             ),
             filament: ControlValue::new(
                 "Filament",
+                0,
                 Control::IFIL_SET1,
                 63999,
                 RangeValue::Value(2.7, RangeUnit::Ampere),
             ),
             screen: ControlValue::new(
                 "Screen",
+                0,
                 Control::SCR_SET,
                 63999,
                 RangeValue::Value(7.0, RangeUnit::KiloVolt),
@@ -184,18 +205,21 @@ impl Controls {
             // Output value: gain * 1000 + offset
             lens2: ControlValue::new(
                 "Lens 2",
+                0,
                 Control::L2_SET,
                 23734,
                 RangeValue::MinMaxValue(-20.0, 1100.0, RangeUnit::Volt),
             ),
             lens1_3: ControlValue::new(
                 "Lens 1/3",
+                0,
                 Control::L13_SET,
                 55522,
                 RangeValue::MinMaxValue(-20.0, 2500.0, RangeUnit::Volt),
             ),
             suppressor: ControlValue::new(
                 "Suppressor",
+                26000,
                 Control::RET_SET_INT,
                 35199,
                 RangeValue::Value(110.0, RangeUnit::Percentage),
@@ -207,7 +231,9 @@ impl Controls {
 pub struct Controller {
     pub current: Current,
     pub controls: Controls,
+    last_current_update: SystemTime,
     adc_counter: u8,
+    defaults_counter: u8,
 }
 
 impl Controller {
@@ -215,11 +241,38 @@ impl Controller {
         Self {
             current: Current::new(),
             controls: Controls::new(),
+            last_current_update: SystemTime::now(),
             adc_counter: 0,
+            defaults_counter: 0,
         }
     }
 
-    pub fn update_currents(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
+    pub fn update(&mut self, leed_sender: &mpsc::Sender<[u8; 6]>) {
+        let time_diff = SystemTime::now()
+            .duration_since(self.last_current_update)
+            .expect("Time went backwards");
+        if time_diff > Duration::from_secs(1) {
+            self.last_current_update = SystemTime::now();
+            // TODO: Send defaults in a better way
+            match self.defaults_counter {
+                0 => {
+                    self.controls.beam_energy.send_default(leed_sender);
+                    self.defaults_counter += 1;
+                }
+                1 => {
+                    self.controls.emission.send_default(leed_sender);
+                    self.defaults_counter += 1;
+                }
+                2 => {
+                    self.controls.suppressor.send_default(leed_sender);
+                    self.defaults_counter += 1;
+                }
+                _ => self.update_currents(&leed_sender),
+            }
+        }
+    }
+
+    fn update_currents(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
         match send_control_change(MessageTag::ADC(self.adc_counter + 1), 0, sender) {
             Ok(_) => {
                 self.adc_counter = (self.adc_counter + 1) % 3;

@@ -9,6 +9,7 @@ use log::{error, info, LevelFilter};
 use std::collections::VecDeque;
 use std::io::{self, stdout};
 use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
 use std::time::{Duration, SystemTime};
 
 use crossterm::{
@@ -49,16 +50,8 @@ fn main() -> io::Result<()> {
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
-    let mut last_current_update = SystemTime::now();
     while handle_ui_events(&mut app, &leed_send)? {
-        if SystemTime::now()
-            .duration_since(last_current_update)
-            .expect("Time went backwards")
-            > Duration::from_secs(1)
-        {
-            last_current_update = SystemTime::now();
-            app.leed_controller.update_currents(&leed_send);
-        }
+        app.leed_controller.update(&leed_send);
 
         handle_leed_messages(&leed_responses, &mut app.leed_controller, &mut ui);
         app.update();
