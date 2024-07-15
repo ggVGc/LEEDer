@@ -3,7 +3,9 @@ use log::{error, info};
 #[derive(Debug, Clone, Copy)]
 pub enum MessageTag {
     Arbitrary(u8),
-    ADC(u8),
+    ADC1,
+    ADC2,
+    ADC3,
     Control(Control),
     // Status(Status),
     DigOut, // DAC(u8)
@@ -53,11 +55,11 @@ impl Message {
             0x38 => Some(MessageTag::Control(Control::EMI_SET)),
             0x39 => Some(MessageTag::Control(Control::EMI_MAX)),
 
-            0x42 => Some(MessageTag::ADC(1)),
+            0x42 => Some(MessageTag::ADC1),
             // 0x42 => Some(MessageTag::Arbitrary(m.id)),
-            0x45 => Some(MessageTag::ADC(2)),
+            0x45 => Some(MessageTag::ADC2),
             // 0x45 => Some(MessageTag::Arbitrary(m.id)),
-            0x48 => Some(MessageTag::ADC(3)),
+            0x48 => Some(MessageTag::ADC3),
             // 0x48 => Some(MessageTag::Arbitrary(m.id)),
             0x41 => Some(MessageTag::Arbitrary(m.id)),
             0x43 => Some(MessageTag::Arbitrary(m.id)),
@@ -89,9 +91,9 @@ impl Message {
             MessageTag::Control(Control::IFIL_SET1) => 0x37,
             MessageTag::Control(Control::EMI_SET) => 0x38,
             MessageTag::Control(Control::EMI_MAX) => 0x39,
-            MessageTag::ADC(1) => 0x42,
-            MessageTag::ADC(2) => 0x45,
-            MessageTag::ADC(3) => 0x48,
+            MessageTag::ADC1 => 0x42,
+            MessageTag::ADC2 => 0x45,
+            MessageTag::ADC3 => 0x48,
             msg => {
                 error!("Unimplemented: {:?}", msg);
                 0x36

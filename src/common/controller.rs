@@ -273,7 +273,13 @@ impl Controller {
     }
 
     fn update_currents(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
-        match send_control_change(MessageTag::ADC(self.adc_counter + 1), 0, sender) {
+        let tag = match self.adc_counter {
+            0 => MessageTag::ADC1,
+            1 => MessageTag::ADC2,
+            _ => MessageTag::ADC3,
+        };
+
+        match send_control_change(tag, 0, sender) {
             Ok(_) => {
                 self.adc_counter = (self.adc_counter + 1) % 3;
             }
@@ -287,9 +293,9 @@ impl Controller {
         let v = msg.value as i32;
         match &msg.tag {
             // MessageTag::Arbitrary(_) => todo!(),
-            MessageTag::ADC(1) => self.current.emission = v,
-            MessageTag::ADC(2) => self.current.beam = v,
-            MessageTag::ADC(3) => self.current.filament = v,
+            MessageTag::ADC1 => self.current.emission = v,
+            MessageTag::ADC2 => self.current.beam = v,
+            MessageTag::ADC3 => self.current.filament = v,
             MessageTag::Control(ctrl) => match ctrl {
                 Control::L2_SET => self.controls.lens2.value = v,
                 Control::L13_SET => self.controls.lens1_3.value = v,
