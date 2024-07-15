@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use log::error;
+
+#[derive(Debug, Clone, Copy)]
 pub enum MessageTag {
     Arbitrary(u8),
     ADC(u8),
@@ -13,7 +15,7 @@ pub struct Message {
     pub value: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[allow(non_camel_case_types)]
 pub enum Control {
     L2_SET,
@@ -75,8 +77,19 @@ impl Message {
 
     fn to_raw(&self) -> RawMessage {
         let id = match self.tag {
+            MessageTag::Control(Control::L2_SET) => 0x31,
+            MessageTag::Control(Control::WEH_SET) => 0x32,
+            MessageTag::Control(Control::L13_SET) => 0x33,
+            MessageTag::Control(Control::SCR_SET) => 0x34,
+            MessageTag::Control(Control::RET_SET_INT) => 0x35,
             MessageTag::Control(Control::BEAM_SET_INT) => 0x36,
-            _ => todo!(),
+            MessageTag::Control(Control::IFIL_SET1) => 0x37,
+            MessageTag::Control(Control::EMI_SET) => 0x38,
+            MessageTag::Control(Control::EMI_MAX) => 0x39,
+            msg => {
+                error!("Unimplemented: {:?}", msg);
+                0x36
+            }
         };
 
         RawMessage {

@@ -3,19 +3,40 @@ use super::protocol::{Control, Message, MessageTag};
 use std::collections::VecDeque;
 use std::sync::mpsc;
 
-pub enum RangeUnit {
-    Ampere(f32),
-    MicroAmpere(f32),
-    Volt(f32),
-    Percentage(f32),
-    Dummy,
+enum RangeUnit {
+    Ampere,
+    MicroAmpere,
+    Volt,
+    KiloVolt,
+    eV,
+    Percentage,
+}
+
+impl RangeUnit {
+    pub fn to_string(&self) -> String {
+        match self {
+            RangeUnit::Ampere => "A",
+            RangeUnit::MicroAmpere => "uA",
+            RangeUnit::Volt => "V",
+            RangeUnit::KiloVolt => "kV",
+            RangeUnit::eV => "eV",
+            RangeUnit::Percentage => "%",
+        }
+        .to_string()
+    }
+}
+
+pub enum RangeValue {
+    Value(f32, RangeUnit),
+    MinMaxValue(f32, f32, RangeUnit),
 }
 
 pub struct ControlValue {
     pub value: i32,
     domain_max: i32,
     pub name: String,
-    range_max: RangeUnit,
+    range_max: RangeValue,
+    control: Control,
 }
 
 #[derive(PartialEq)]
@@ -39,11 +60,22 @@ fn send_control_change(
 
 impl ControlValue {
     pub fn to_string(&self) -> String {
-        return format!("{}", self.value as f32 / self.domain_max as f32).to_string();
+        let ratio = self.value as f32 / self.domain_max as f32;
+        // let value = ratio *
+        match &self.range_max {
+            RangeValue::Value(max_value, unit) => {
+                let value = ratio * max_value;
+                return format!("{} {}", value, unit.to_string()).to_string();
+            },
+            RangeValue::MinMaxValue(min_value, max_value, unit) => {
+                let value = min_value + ratio * (max_value - min_value);
+                return format!("{} {}", value, unit.to_string()).to_string();
+            }
+        }
     }
 
     fn next(&self, dir: Adjustment) -> i32 {
-        let step = (self.domain_max as f32 / 100.0) as i32;
+        let step = (self.domain_max as f32 / 500.0) as i32;
 
         let mut res = match dir {
             Adjustment::Up => self.value + step,
@@ -68,18 +100,18 @@ impl ControlValue {
         sender: &mpsc::Sender<[u8; 6]>,
     ) -> Result<(), mpsc::SendError<[u8; 6]>> {
         let value = self.next(adjustment);
-        send_control_change(MessageTag::Control(Control::BEAM_SET_INT), value, sender)
+        send_control_change(MessageTag::Control(self.control), value, sender)
     }
 }
 
 impl ControlValue {
-    // pub fn new(domain_max: i32, range_max: RangeUnit ) -> Self {
-    pub fn new(name: &str, domain_max: i32) -> Self {
+    pub fn new(name: &str, control: Control, domain_max: i32, range_max: RangeValue) -> Self {
         Self {
             value: 0,
+            control,
             domain_max,
             name: name.to_string(),
-            range_max: RangeUnit::Dummy,
+            range_max,
         }
     }
 }
@@ -114,15 +146,29 @@ pub struct Controls {
 impl Controls {
     fn new() -> Self {
         Self {
-            beam_energy: ControlValue::new("Beam energy", 63999),
-            wehnheit: ControlValue::new("Wehnheit", 63999),
-            emission: ControlValue::new("Emission", 16959),
-            filament: ControlValue::new("Filament", 63999),
-            screen: ControlValue::new("Screen", 63999),
-            lens1_3: ControlValue::new("Lens 1/3", 55522),
-            lens2: ControlValue::new("Lens 2", 23734),
-            // suppressor: ControlValue::new(35199, RangeUnit::Percentage(110.0)),
-            suppressor: ControlValue::new("Suppressor", 35199),
+            beam_energy: ControlValue::new(
+                "Beam energy",
+                Control::BEAM_SET_INT,
+                63999,
+                RangeValue::Value(1000.0, RangeUnit::eV),
+            ),
+            wehnheit: ControlValue::new("Wehnheit", Control::WEH_SET, 63999, RangeValue::Value(100.0, RangeUnit::Volt)),
+            emission: ControlValue::new("Emission", Control::EMI_SET, 16959, RangeValue::Value(50.0, RangeUnit::MicroAmpere)),
+            filament: ControlValue::new("Filament", Control::IFIL_SET1, 63999, RangeValue::Value(2.7, RangeUnit::Ampere)),
+            screen: ControlValue::new("Screen", Control::SCR_SET, 63999, RangeValue::Value(7.0, RangeUnit::KiloVolt)),
+            // Lenses:
+            // Offset: -20 - 100V
+            // L2 Gain: 0 - 1.0
+            // L13 Gain: 0 - 2.5
+            // Output value: gain * 1000 + offset
+            lens2: ControlValue::new("Lens 2", Control::L2_SET, 23734, RangeValue::MinMaxValue(-20.0, 1100.0, RangeUnit::Volt)),
+            lens1_3: ControlValue::new("Lens 1/3", Control::L13_SET, 55522, RangeValue::MinMaxValue(-20.0, 2500.0, RangeUnit::Volt)),
+            suppressor: ControlValue::new(
+                "Suppressor",
+                Control::RET_SET_INT,
+                35199,
+                RangeValue::Value(110.0, RangeUnit::Percentage),
+            ),
         }
     }
 }
