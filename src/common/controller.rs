@@ -1,9 +1,39 @@
 use super::protocol::{Control, Message, MessageTag};
 
-use log::error;
+use log::{error, info};
 use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::time::{Duration, SystemTime};
+
+struct Ramp {
+    last_time: SystemTime,
+}
+
+impl Ramp {
+    pub fn new() -> Self {
+        Self {
+            last_time: SystemTime::now(),
+        }
+    }
+
+    pub fn ready(&mut self) -> bool {
+        let time_diff = SystemTime::now()
+            .duration_since(self.last_time)
+            .expect("Time went backwards");
+
+        if time_diff > Duration::from_millis(1000) {
+            self.last_time = SystemTime::now();
+            true
+        } else {
+            false
+        }
+    }
+}
+
+enum ValueSetter {
+    Direct,
+    Ramped(Ramp),
+}
 
 pub enum RangeUnit {
     Ampere,
@@ -28,17 +58,19 @@ impl RangeUnit {
     }
 }
 
-pub enum RangeValue {
-    Value(f32, RangeUnit),
-    MinMaxValue(f32, f32, RangeUnit),
+pub enum Range {
+    Max(f32, RangeUnit),
+    MinMax(f32, f32, RangeUnit),
 }
 
 pub struct ControlValue {
-    pub value: i32,
+    pub name: String,
+    pub current_value: i32,
+    setter: ValueSetter,
+    target_value: i32,
     default: i32,
     domain_max: i32,
-    pub name: String,
-    range_max: RangeValue,
+    range: Range,
     control: Control,
 }
 
@@ -48,7 +80,7 @@ pub enum Adjustment {
     Down,
 }
 
-fn send_control_change(
+fn send_control_message(
     message_tag: MessageTag,
     value: i32,
     sender: &mpsc::Sender<[u8; 6]>,
@@ -62,27 +94,85 @@ fn send_control_change(
 }
 
 impl ControlValue {
-    pub fn to_string(&self) -> String {
-        let ratio = self.value as f32 / self.domain_max as f32;
-        // let value = ratio *
-        match &self.range_max {
-            RangeValue::Value(max_value, unit) => {
-                let value = ratio * max_value;
-                return format!("{} {}", value, unit.to_string()).to_string();
+    fn new(
+        name: &str,
+        setter: ValueSetter,
+        default: i32,
+        control: Control,
+        domain_max: i32,
+        range: Range,
+    ) -> Self {
+        Self {
+            current_value: 0,
+            setter,
+            target_value: default,
+            default,
+            control,
+            domain_max,
+            name: name.to_string(),
+            range,
+        }
+    }
+
+    fn update(&mut self, sender: &mpsc::Sender<[u8; 6]>) -> Result<(), mpsc::SendError<[u8; 6]>> {
+        match &mut self.setter {
+            ValueSetter::Direct => {
+                if self.target_value != self.current_value {
+                    send_control_message(
+                        MessageTag::Control(self.control),
+                        self.target_value,
+                        sender,
+                    )
+                } else {
+                    Ok(())
+                }
             }
-            RangeValue::MinMaxValue(min_value, max_value, unit) => {
-                let value = min_value + ratio * (max_value - min_value);
-                return format!("{} {}", value, unit.to_string()).to_string();
+            ValueSetter::Ramped(ramp) => {
+                if ramp.ready() {
+                    let step = (self.domain_max as f32 / 500.0) as i32;
+                    if (self.target_value - self.current_value).abs() < step {
+                        Ok(())
+                    } else {
+                        let dir = if self.target_value < self.current_value {
+                            Adjustment::Down
+                        } else {
+                            Adjustment::Up
+                        };
+                        let value = self.next(self.current_value, dir);
+                        info!("Ramp {}: {}", self.name, value);
+                        send_control_message(MessageTag::Control(self.control), value, sender)
+                    }
+                } else {
+                    Ok(())
+                }
             }
         }
     }
 
-    fn next(&self, dir: Adjustment) -> i32 {
+    pub fn to_string(&self) -> String {
+        let current_ratio = self.current_value as f32 / self.domain_max as f32;
+        let target_ratio = self.target_value as f32 / self.domain_max as f32;
+        // let value = ratio *
+        let (cur, targ, unit) = match &self.range {
+            Range::Max(max_value, unit) => {
+                (current_ratio * max_value, target_ratio * max_value, unit)
+            }
+            Range::MinMax(min_value, max_value, unit) => (
+                min_value + current_ratio * (max_value - min_value),
+                min_value + target_ratio * (max_value - min_value),
+                unit
+            ),
+        };
+
+        return format!("{} [{}] {}  ({} / {})", cur, targ, unit.to_string(), self.current_value, self.domain_max).to_string();
+    }
+
+    fn next(&self, start_value: i32, dir: Adjustment) -> i32 {
         let step = (self.domain_max as f32 / 500.0) as i32;
 
         let mut res = match dir {
-            Adjustment::Up => self.value + step,
-            Adjustment::Down => self.value - step,
+            Adjustment::Up => start_value + step,
+            Adjustment::Down => start_value - step,
         };
 
         if res < 0 {
@@ -97,39 +187,15 @@ impl ControlValue {
         // info!("Increased value: {}", self.value);
     }
 
-    pub fn adjust(
-        &self,
-        adjustment: Adjustment,
-        sender: &mpsc::Sender<[u8; 6]>,
-    ) -> Result<(), mpsc::SendError<[u8; 6]>> {
-        let value = self.next(adjustment);
-        send_control_change(MessageTag::Control(self.control), value, sender)
+    pub fn adjust(&mut self, adjustment: Adjustment) -> () {
+        self.target_value = self.next(self.target_value, adjustment)
     }
 
     pub fn send_default(
         &self,
         sender: &mpsc::Sender<[u8; 6]>,
     ) -> Result<(), mpsc::SendError<[u8; 6]>> {
-        send_control_change(MessageTag::Control(self.control), self.default, sender)
-    }
-}
-
-impl ControlValue {
-    pub fn new(
-        name: &str,
-        default: i32,
-        control: Control,
-        domain_max: i32,
-        range_max: RangeValue,
-    ) -> Self {
-        Self {
-            value: 0,
-            default,
-            control,
-            domain_max,
-            name: name.to_string(),
-            range_max,
-        }
+        send_control_message(MessageTag::Control(self.control), self.default, sender)
     }
 }
 
@@ -161,42 +227,60 @@ pub struct Controls {
 }
 
 impl Controls {
+    fn update(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
+        self.beam_energy.update(sender);
+        self.wehnheit.update(sender);
+        self.emission.update(sender);
+        self.filament.update(sender);
+        self.screen.update(sender);
+        self.lens1_3.update(sender);
+        self.lens2.update(sender);
+        self.suppressor.update(sender);
+    }
+}
+
+impl Controls {
     fn new() -> Self {
         Self {
-            beam_energy: ControlValue::new(
-                "Beam energy",
-                3500,
-                Control::BEAM_SET_INT,
-                63999,
-                RangeValue::Value(1000.0, RangeUnit::ElectronVolt),
-            ),
-            wehnheit: ControlValue::new(
-                "Wehnheit",
-                0,
-                Control::WEH_SET,
-                63999,
-                RangeValue::Value(100.0, RangeUnit::Volt),
-            ),
-            emission: ControlValue::new(
-                "Emission",
-                16959,
-                Control::EMI_SET,
-                16959,
-                RangeValue::Value(50.0, RangeUnit::MicroAmpere),
-            ),
             filament: ControlValue::new(
                 "Filament",
+                ValueSetter::Ramped(Ramp::new()),
                 0,
                 Control::IFIL_SET1,
                 63999,
-                RangeValue::Value(2.7, RangeUnit::Ampere),
+                Range::Max(2.7, RangeUnit::Ampere),
+            ),
+            beam_energy: ControlValue::new(
+                "Beam energy",
+                ValueSetter::Direct,
+                3500,
+                Control::BEAM_SET_INT,
+                63999,
+                Range::Max(1000.0, RangeUnit::ElectronVolt),
+            ),
+            wehnheit: ControlValue::new(
+                "Wehnheit",
+                ValueSetter::Direct,
+                0,
+                Control::WEH_SET,
+                63999,
+                Range::Max(100.0, RangeUnit::Volt),
+            ),
+            emission: ControlValue::new(
+                "Emission",
+                ValueSetter::Direct,
+                16959,
+                Control::EMI_SET,
+                16959,
+                Range::Max(50.0, RangeUnit::MicroAmpere),
             ),
             screen: ControlValue::new(
                 "Screen",
-                0,
+                ValueSetter::Direct,
+                63999,
                 Control::SCR_SET,
                 63999,
-                RangeValue::Value(7.0, RangeUnit::KiloVolt),
+                Range::Max(7.0, RangeUnit::KiloVolt),
             ),
             // Lenses:
             // Offset: -20 - 100V
@@ -205,24 +289,27 @@ impl Controls {
             // Output value: gain * 1000 + offset
             lens2: ControlValue::new(
                 "Lens 2",
-                0,
+                ValueSetter::Direct,
+                20000,
                 Control::L2_SET,
                 23734,
-                RangeValue::MinMaxValue(-20.0, 1100.0, RangeUnit::Volt),
+                Range::MinMax(-20.0, 1100.0, RangeUnit::Volt),
             ),
             lens1_3: ControlValue::new(
                 "Lens 1/3",
-                0,
+                ValueSetter::Direct,
+                50000,
                 Control::L13_SET,
                 55522,
-                RangeValue::MinMaxValue(-20.0, 2500.0, RangeUnit::Volt),
+                Range::MinMax(-20.0, 2500.0, RangeUnit::Volt),
             ),
             suppressor: ControlValue::new(
                 "Suppressor",
+                ValueSetter::Direct,
                 26000,
                 Control::RET_SET_INT,
                 35199,
-                RangeValue::Value(110.0, RangeUnit::Percentage),
+                Range::MinMax(10.0, 110.0, RangeUnit::Percentage),
             ),
         }
     }
@@ -267,9 +354,25 @@ impl Controller {
                     self.controls.suppressor.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
-                _ => self.update_currents(&leed_sender),
+                3 => {
+                    self.controls.screen.send_default(leed_sender);
+                    self.defaults_counter += 1;
+                }
+                4 => {
+                    self.controls.lens2.send_default(leed_sender);
+                    self.defaults_counter += 1;
+                }
+                5 => {
+                    self.controls.lens1_3.send_default(leed_sender);
+                    self.defaults_counter += 1;
+                }
+                _ => {
+                    self.update_currents(&leed_sender);
+                }
             }
         }
+
+        self.controls.update(leed_sender);
     }
 
     fn update_currents(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
@@ -279,7 +382,7 @@ impl Controller {
             _ => MessageTag::ADC3,
         };
 
-        match send_control_change(tag, 0, sender) {
+        match send_control_message(tag, 0, sender) {
             Ok(_) => {
                 self.adc_counter = (self.adc_counter + 1) % 3;
             }
@@ -297,14 +400,14 @@ impl Controller {
             MessageTag::ADC2 => self.current.beam = v,
             MessageTag::ADC3 => self.current.filament = v,
             MessageTag::Control(ctrl) => match ctrl {
-                Control::L2_SET => self.controls.lens2.value = v,
-                Control::L13_SET => self.controls.lens1_3.value = v,
-                Control::WEH_SET => self.controls.wehnheit.value = v,
-                Control::SCR_SET => self.controls.screen.value = v,
-                Control::RET_SET_INT => self.controls.suppressor.value = v,
-                Control::BEAM_SET_INT => self.controls.beam_energy.value = v,
-                Control::EMI_SET => self.controls.emission.value = v,
-                Control::IFIL_SET1 => self.controls.filament.value = v,
+                Control::L2_SET => self.controls.lens2.current_value = v,
+                Control::L13_SET => self.controls.lens1_3.current_value = v,
+                Control::WEH_SET => self.controls.wehnheit.current_value = v,
+                Control::SCR_SET => self.controls.screen.current_value = v,
+                Control::RET_SET_INT => self.controls.suppressor.current_value = v,
+                Control::BEAM_SET_INT => self.controls.beam_energy.current_value = v,
+                Control::EMI_SET => self.controls.emission.current_value = v,
+                Control::IFIL_SET1 => self.controls.filament.current_value = v,
                 Control::EMI_MAX => {
                     log_messages.push_front(format!("Unhandled LEED message: {:?}", msg.tag))
                 }

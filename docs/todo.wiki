@@ -1,4 +1,19 @@
 
+= Changes needed for single-machine deployment =
+- [ ] Talk to tango in some way. Might be easiest to spin up a child python process.
+
+
+= Tests =
+- Ramping
+- Value mappings:
+  - Especially Lens and Suppressor/Beam Energy
+
+
+- [ ] Mapping of reported current values (beam, emission, filament)
+- [ ] Do not allow exit until reported filament current is 0
+
+
+
 = General =
 * Move old scans to backup dir with date in name instead of deleting
 * Store settings used for scan in file alongside images dir

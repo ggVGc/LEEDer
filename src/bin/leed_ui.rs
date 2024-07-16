@@ -50,7 +50,7 @@ fn main() -> io::Result<()> {
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
-    while handle_ui_events(&mut app, &leed_send)? {
+    while handle_ui_events(&mut app)? {
         app.leed_controller.update(&leed_send);
 
         handle_leed_messages(&leed_responses, &mut app.leed_controller, &mut ui);
@@ -67,20 +67,20 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn handle_ui_events(app: &mut App, leed_send: &mpsc::Sender<[u8; 6]>) -> io::Result<bool> {
+fn handle_ui_events(app: &mut App) -> io::Result<bool> {
     let poll_time = std::time::Duration::from_millis(50);
     let mut should_continue = true;
 
-    let controls = &app.leed_controller.controls;
+    let controls = &mut app.leed_controller.controls;
     let control_inputs = [
-        ('a', 'z', &controls.beam_energy),
-        ('s', 'x', &controls.wehnheit),
-        ('d', 'c', &controls.emission),
-        ('f', 'v', &controls.filament),
-        ('g', 'b', &controls.screen),
-        ('h', 'n', &controls.lens1_3),
-        ('j', 'm', &controls.lens2),
-        ('k', ',', &controls.suppressor),
+        ('a', 'z', &mut controls.beam_energy),
+        ('s', 'x', &mut controls.wehnheit),
+        ('d', 'c', &mut controls.emission),
+        ('f', 'v', &mut controls.filament),
+        ('g', 'b', &mut controls.screen),
+        ('h', 'n', &mut controls.lens1_3),
+        ('j', 'm', &mut controls.lens2),
+        ('k', ',', &mut controls.suppressor),
     ];
 
     if event::poll(poll_time)? {
@@ -92,15 +92,11 @@ fn handle_ui_events(app: &mut App, leed_send: &mpsc::Sender<[u8; 6]>) -> io::Res
                         for (up, down, control) in control_inputs {
                             if key.code == KeyCode::Char(up) {
                                 info!("{}: +", control.name);
-                                control.adjust(Adjustment::Up, leed_send)
+                                control.adjust(Adjustment::Up)
                             } else if key.code == KeyCode::Char(down) {
                                 info!("{} -", control.name);
-                                control.adjust(Adjustment::Down, leed_send)
-                            } else {
-                                Ok(())
+                                control.adjust(Adjustment::Down)
                             }
-                            .map_err(|err| error!("{:?}", err))
-                            .ok();
                         }
                     }
                 }

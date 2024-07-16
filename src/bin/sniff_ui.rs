@@ -1,5 +1,5 @@
 use leed_controller::common::controller::Controller;
-use leed_controller::common::protocol::Message;
+use leed_controller::common::protocol::{Message, MessageTag};
 use leed_controller::common::sniffer::monitor2;
 use std::collections::VecDeque;
 use std::io::{self, stdout};
@@ -33,8 +33,8 @@ fn main() -> io::Result<()> {
     let (soft_listen_in, soft_listen_out) = mpsc::channel();
     let (leed_listen_in, leed_listen_out) = mpsc::channel();
 
-    let soft_port = "/dev/ttyUSB1".to_string();
-    let leed_port = "/dev/ttyUSB0".to_string();
+    let soft_port = "/dev/ttyUSB0".to_string();
+    let leed_port = "/dev/ttyUSB1".to_string();
     monitor2(soft_port, leed_send, soft_listen_in, soft_recv);
 
     if DUMMY_REPEATER {
@@ -148,13 +148,13 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
     let mut controls_content = Vec::from(
         [
             ("Beam Energy", &c.controls.beam_energy),
+            ("Suppressor", &c.controls.suppressor),
+            ("Lens 2 Set", &c.controls.lens2),
+            ("Lens 1/3 Set", &c.controls.lens1_3),
             ("Wehnheit", &c.controls.wehnheit),
             ("Emission", &c.controls.emission),
             ("Filament", &c.controls.filament),
             ("Screen", &c.controls.screen),
-            ("Lens 2 Gain", &c.controls.lens2),
-            ("Lens 1/3 Gain", &c.controls.lens1_3),
-            ("Suppressor", &c.controls.suppressor),
         ]
         .map(|(title, value)| format!("{}: {}", title, value.to_string())),
     );
@@ -177,7 +177,9 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
 fn buf_to_msg_string(bytes: &[u8; 6]) -> Option<String> {
     if let Some(msg) = Message::from_bytes(&bytes) {
         match msg.tag {
-            // MessageTag::ADC(_) => return None,
+            MessageTag::ADC1 => return None,
+            MessageTag::ADC2 => return None,
+            MessageTag::ADC3 => return None,
             _ => return Some(format!("{:?}", msg)),
         }
     } else {
