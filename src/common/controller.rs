@@ -35,7 +35,7 @@ enum ValueSetter {
     Ramped(Ramp),
 }
 
-pub enum RangeUnit {
+pub enum Unit {
     Ampere,
     MicroAmpere,
     Volt,
@@ -44,23 +44,23 @@ pub enum RangeUnit {
     Percentage,
 }
 
-impl RangeUnit {
+impl Unit {
     pub fn to_string(&self) -> String {
         match self {
-            RangeUnit::Ampere => "A",
-            RangeUnit::MicroAmpere => "uA",
-            RangeUnit::Volt => "V",
-            RangeUnit::KiloVolt => "kV",
-            RangeUnit::ElectronVolt => "eV",
-            RangeUnit::Percentage => "%",
+            Unit::Ampere => "A",
+            Unit::MicroAmpere => "uA",
+            Unit::Volt => "V",
+            Unit::KiloVolt => "kV",
+            Unit::ElectronVolt => "eV",
+            Unit::Percentage => "%",
         }
         .to_string()
     }
 }
 
 pub enum Range {
-    Max(f32, RangeUnit),
-    MinMax(f32, f32, RangeUnit),
+    Max(f32, Unit),
+    MinMax(f32, f32, Unit),
 }
 
 pub struct ControlValue {
@@ -248,7 +248,7 @@ impl Controls {
                 0,
                 Control::IFIL_SET1,
                 63999,
-                Range::Max(2.7, RangeUnit::Ampere),
+                Range::Max(2.7, Unit::Ampere),
             ),
             beam_energy: ControlValue::new(
                 "Beam energy",
@@ -256,7 +256,7 @@ impl Controls {
                 3500,
                 Control::BEAM_SET_INT,
                 63999,
-                Range::Max(1000.0, RangeUnit::ElectronVolt),
+                Range::Max(1000.0, Unit::ElectronVolt),
             ),
             wehnheit: ControlValue::new(
                 "Wehnheit",
@@ -264,7 +264,7 @@ impl Controls {
                 0,
                 Control::WEH_SET,
                 63999,
-                Range::Max(100.0, RangeUnit::Volt),
+                Range::Max(100.0, Unit::Volt),
             ),
             emission: ControlValue::new(
                 "Emission",
@@ -272,7 +272,7 @@ impl Controls {
                 16959,
                 Control::EMI_SET,
                 16959,
-                Range::Max(50.0, RangeUnit::MicroAmpere),
+                Range::Max(50.0, Unit::MicroAmpere),
             ),
             screen: ControlValue::new(
                 "Screen",
@@ -280,7 +280,7 @@ impl Controls {
                 63999,
                 Control::SCR_SET,
                 63999,
-                Range::Max(7.0, RangeUnit::KiloVolt),
+                Range::Max(7.0, Unit::KiloVolt),
             ),
             // Lenses:
             // Offset: -20 - 100V
@@ -293,7 +293,7 @@ impl Controls {
                 20000,
                 Control::L2_SET,
                 23734,
-                Range::MinMax(-20.0, 1100.0, RangeUnit::Volt),
+                Range::MinMax(-20.0, 1100.0, Unit::Volt),
             ),
             lens1_3: ControlValue::new(
                 "Lens 1/3",
@@ -301,7 +301,7 @@ impl Controls {
                 50000,
                 Control::L13_SET,
                 55522,
-                Range::MinMax(-20.0, 2500.0, RangeUnit::Volt),
+                Range::MinMax(-20.0, 2500.0, Unit::Volt),
             ),
             suppressor: ControlValue::new(
                 "Suppressor",
@@ -309,7 +309,7 @@ impl Controls {
                 26000,
                 Control::RET_SET_INT,
                 35199,
-                Range::MinMax(10.0, 110.0, RangeUnit::Percentage),
+                Range::MinMax(10.0, 110.0, Unit::Percentage),
             ),
         }
     }
@@ -418,4 +418,11 @@ impl Controller {
             _ => log_messages.push_front(format!("Unhandled LEED message: {:?}", msg.tag)),
         }
     }
+}
+
+
+#[test]
+fn my_thing_is_cool() {
+    assert!(1 == 1)
+    
 }
