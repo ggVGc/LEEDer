@@ -59,3 +59,11 @@ Adjusting beam energy also changes:
       Suppressor: 59.998577 %  (17599 / 35199)
     - Beam Energy: 1000 eV  (63999 / 63999)                                                                                                                                                                                                        │
       Suppressor: 110 %  (35199 / 35199) 
+
+
+
+= Development =
+- Using pytango, since too complicated to get tango C bindings running on the beamline machine without more knowledge of that system.
+  Pytango works and is used by other things.
+- Application needs to run in sardana environment, which runs python 3.9
+- Using pyo3, which requires libpython

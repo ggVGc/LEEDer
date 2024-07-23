@@ -13,56 +13,65 @@
 - [ ] Do not allow exit until reported filament current is 0
 
 
-
-= General =
-* Move old scans to backup dir with date in name instead of deleting
-* Store settings used for scan in file alongside images dir
-  - ScanConf
-  - Camera setting (exposure and gain)
-* Wait for camera picture before taking next step.
-  - Currently using a step delay time.
+= Delivery =
+- Docker image which builds things for the specific rocky linux distro available at the beamline
+- Contains hacks such as copying libpython
 
 
 
-= Scanning =
-* Should be able to move to specific x, y cell within the current ScanConf
-* Hard limits on ScanConf in motors_controller.
-  - Scan area defines in terms of x, y edges instead
-* More complex scan areas:
-  - For example along edges
-* Named marked spots with an easy way of going to them
-* Pause/resume of automatic scanning
-* Quick way of doing a finer scan of selected area
-* Estimated completion time
 
 
 
-= LEED Controls (old) =
-
-- [ ] Display of current voltages from controller
-- [ ] Adjustment of settings
-        * "Sliders"
-        * View current values based on what is echoed from controller
-- [ ] Actuator of outgoing values
-        * Keep target value per setting
-        * Gradually move towards target value, slowly
-- [ ] Scan loop:
-        * Move motors
-        * Take picture
-        * Show some kind of live feed or updated picture (?)
-
-- [ ] Lens offset and gain combines into L2_SET. Offset is UI-only.
-- [ ] Suppressor enable/disable is UI-only,
-- [ ] Reset sequence, upon shutdown and startup. Maybe not the same in each case.
-
-
-= Controls: =
-* Suppressor is percentage
-  - Send each time beam energy changes
-  - Also send L2_SET and L13_SET (no change, I think)
+== OLD ==
+  = General =
+  * Move old scans to backup dir with date in name instead of deleting
+  * Store settings used for scan in file alongside images dir
+    - ScanConf
+    - Camera setting (exposure and gain)
+  * Wait for camera picture before taking next step.
+    - Currently using a step delay time.
 
 
 
-= Questions =
-* What is EMI_MAX?
-  - It is sent on shutdown
+  = Scanning =
+  * Should be able to move to specific x, y cell within the current ScanConf
+  * Hard limits on ScanConf in motors_controller.
+    - Scan area defines in terms of x, y edges instead
+  * More complex scan areas:
+    - For example along edges
+  * Named marked spots with an easy way of going to them
+  * Pause/resume of automatic scanning
+  * Quick way of doing a finer scan of selected area
+  * Estimated completion time
+
+
+
+  = LEED Controls (old) =
+
+  - [ ] Display of current voltages from controller
+  - [ ] Adjustment of settings
+          * "Sliders"
+          * View current values based on what is echoed from controller
+  - [ ] Actuator of outgoing values
+          * Keep target value per setting
+          * Gradually move towards target value, slowly
+  - [ ] Scan loop:
+          * Move motors
+          * Take picture
+          * Show some kind of live feed or updated picture (?)
+
+  - [ ] Lens offset and gain combines into L2_SET. Offset is UI-only.
+  - [ ] Suppressor enable/disable is UI-only,
+  - [ ] Reset sequence, upon shutdown and startup. Maybe not the same in each case.
+
+
+  = Controls: =
+  * Suppressor is percentage
+    - Send each time beam energy changes
+    - Also send L2_SET and L13_SET (no change, I think)
+
+
+
+  = Questions =
+  * What is EMI_MAX?
+    - It is sent on shutdown
