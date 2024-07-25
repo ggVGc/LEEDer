@@ -2,8 +2,9 @@ use super::protocol::{Control, Message, Tag};
 
 use log::{error, info};
 use std::collections::VecDeque;
+use std::fmt::Display;
 use std::sync::mpsc;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 struct Ramp {
     last_time: SystemTime,
@@ -44,17 +45,20 @@ pub enum Unit {
     Percentage,
 }
 
-impl Unit {
-    pub fn to_string(&self) -> String {
-        match self {
-            Unit::Ampere => "A",
-            Unit::MicroAmpere => "uA",
-            Unit::Volt => "V",
-            Unit::KiloVolt => "kV",
-            Unit::ElectronVolt => "eV",
-            Unit::Percentage => "%",
-        }
-        .to_string()
+impl Display for Unit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{}",
+            match self {
+                Unit::Ampere => "A",
+                Unit::MicroAmpere => "uA",
+                Unit::Volt => "V",
+                Unit::KiloVolt => "kV",
+                Unit::ElectronVolt => "eV",
+                Unit::Percentage => "%",
+            }
+        )
     }
 }
 
@@ -96,6 +100,30 @@ fn send_control_message(
         // TODO: Report error in suitable way
         error!("Message not sent. Serialization failed: {:?}", msg);
         Ok(())
+    }
+}
+
+impl Display for ControlValue {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let current_ratio = self.current_value as f32 / self.domain_max as f32;
+        let target_ratio = self.target_value as f32 / self.domain_max as f32;
+        // let value = ratio *
+        let (cur, targ, unit) = match &self.range {
+            Range::Max(max_value, unit) => {
+                (current_ratio * max_value, target_ratio * max_value, unit)
+            }
+            Range::MinMax(min_value, max_value, unit) => (
+                min_value + current_ratio * (max_value - min_value),
+                min_value + target_ratio * (max_value - min_value),
+                unit,
+            ),
+        };
+
+        write!(
+            formatter,
+            "{} [{}] {}  ({} / {})",
+            cur, targ, unit, self.current_value, self.domain_max
+        )
     }
 }
 
@@ -151,32 +179,6 @@ impl ControlValue {
         }
     }
 
-    pub fn to_string(&self) -> String {
-        let current_ratio = self.current_value as f32 / self.domain_max as f32;
-        let target_ratio = self.target_value as f32 / self.domain_max as f32;
-        // let value = ratio *
-        let (cur, targ, unit) = match &self.range {
-            Range::Max(max_value, unit) => {
-                (current_ratio * max_value, target_ratio * max_value, unit)
-            }
-            Range::MinMax(min_value, max_value, unit) => (
-                min_value + current_ratio * (max_value - min_value),
-                min_value + target_ratio * (max_value - min_value),
-                unit,
-            ),
-        };
-
-        return format!(
-            "{} [{}] {}  ({} / {})",
-            cur,
-            targ,
-            unit.to_string(),
-            self.current_value,
-            self.domain_max
-        )
-        .to_string();
-    }
-
     fn next(&self, start_value: i32, dir: Adjustment) -> i32 {
         let step = (self.domain_max as f32 / 500.0) as i32;
 
@@ -197,7 +199,7 @@ impl ControlValue {
         // info!("Increased value: {}", self.value);
     }
 
-    pub fn adjust(&mut self, adjustment: Adjustment) -> () {
+    pub fn adjust(&mut self, adjustment: Adjustment) {
         self.target_value = self.next(self.target_value, adjustment)
     }
 
@@ -238,14 +240,22 @@ pub struct Controls {
 
 impl Controls {
     fn update(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
-        self.beam_energy.update(sender).unwrap();
-        self.wehnheit.update(sender).unwrap();
-        self.emission.update(sender).unwrap();
-        self.filament.update(sender).unwrap();
-        self.screen.update(sender).unwrap();
-        self.lens1_3.update(sender).unwrap();
-        self.lens2.update(sender).unwrap();
-        self.suppressor.update(sender).unwrap();
+        let controls = vec![
+            &mut self.beam_energy,
+            &mut self.wehnheit,
+            &mut self.emission,
+            &mut self.filament,
+            &mut self.screen,
+            &mut self.lens1_3,
+            &mut self.lens2,
+            &mut self.suppressor,
+        ];
+
+        for control in controls {
+            if control.update(sender).is_err() {
+                error!("Failed updating control: {}", control.name);
+            }
+        }
     }
 }
 
@@ -328,7 +338,7 @@ impl Controls {
 pub struct Controller {
     pub current: Current,
     pub controls: Controls,
-    last_current_update: SystemTime,
+    last_current_update: Instant,
     adc_counter: u8,
     defaults_counter: u8,
 }
@@ -338,20 +348,18 @@ impl Controller {
         Self {
             current: Current::new(),
             controls: Controls::new(),
-            last_current_update: SystemTime::now(),
+            last_current_update: Instant::now(),
             adc_counter: 0,
             defaults_counter: 0,
         }
     }
 
     pub fn update(&mut self, leed_sender: &mpsc::Sender<[u8; 6]>) {
-        let time_diff = SystemTime::now()
-            .duration_since(self.last_current_update)
-            .unwrap();
-            // .expect("Time went backwards");
+        let now = Instant::now();
+        let time_diff = now.duration_since(self.last_current_update);
 
         if time_diff > Duration::from_secs(1) {
-            self.last_current_update = SystemTime::now();
+            self.last_current_update = now;
             // TODO: Send defaults in a better way
             match self.defaults_counter {
                 0 => {
@@ -379,7 +387,7 @@ impl Controller {
                     self.defaults_counter += 1;
                 }
                 _ => {
-                    self.update_currents(&leed_sender);
+                    self.update_currents(leed_sender);
                 }
             }
         }
@@ -427,9 +435,4 @@ impl Controller {
             _ => log_messages.push_front(format!("Unhandled LEED message: {:?}", msg.tag)),
         }
     }
-}
-
-#[test]
-fn my_thing_is_cool() {
-    assert!(1 == 1)
 }
