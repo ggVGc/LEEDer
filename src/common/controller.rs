@@ -1,4 +1,4 @@
-use super::protocol::{Control, Message, MessageTag};
+use super::protocol::{Control, Message, Tag};
 
 use log::{error, info};
 use std::collections::VecDeque;
@@ -81,7 +81,7 @@ pub enum Adjustment {
 }
 
 fn send_control_message(
-    message_tag: MessageTag,
+    message_tag: Tag,
     value: i32,
     sender: &mpsc::Sender<[u8; 6]>,
 ) -> Result<(), mpsc::SendError<[u8; 6]>> {
@@ -118,11 +118,7 @@ impl ControlValue {
         match &mut self.setter {
             ValueSetter::Direct => {
                 if self.target_value != self.current_value {
-                    send_control_message(
-                        MessageTag::Control(self.control),
-                        self.target_value,
-                        sender,
-                    )
+                    send_control_message(Tag::Control(self.control), self.target_value, sender)
                 } else {
                     Ok(())
                 }
@@ -140,7 +136,7 @@ impl ControlValue {
                         };
                         let value = self.next(self.current_value, dir);
                         info!("Ramp {}: {}", self.name, value);
-                        send_control_message(MessageTag::Control(self.control), value, sender)
+                        send_control_message(Tag::Control(self.control), value, sender)
                     }
                 } else {
                     Ok(())
@@ -160,11 +156,19 @@ impl ControlValue {
             Range::MinMax(min_value, max_value, unit) => (
                 min_value + current_ratio * (max_value - min_value),
                 min_value + target_ratio * (max_value - min_value),
-                unit
+                unit,
             ),
         };
 
-        return format!("{} [{}] {}  ({} / {})", cur, targ, unit.to_string(), self.current_value, self.domain_max).to_string();
+        return format!(
+            "{} [{}] {}  ({} / {})",
+            cur,
+            targ,
+            unit.to_string(),
+            self.current_value,
+            self.domain_max
+        )
+        .to_string();
     }
 
     fn next(&self, start_value: i32, dir: Adjustment) -> i32 {
@@ -195,7 +199,7 @@ impl ControlValue {
         &self,
         sender: &mpsc::Sender<[u8; 6]>,
     ) -> Result<(), mpsc::SendError<[u8; 6]>> {
-        send_control_message(MessageTag::Control(self.control), self.default, sender)
+        send_control_message(Tag::Control(self.control), self.default, sender)
     }
 }
 
@@ -377,9 +381,9 @@ impl Controller {
 
     fn update_currents(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
         let tag = match self.adc_counter {
-            0 => MessageTag::ADC1,
-            1 => MessageTag::ADC2,
-            _ => MessageTag::ADC3,
+            0 => Tag::ADC1,
+            1 => Tag::ADC2,
+            _ => Tag::ADC3,
         };
 
         match send_control_message(tag, 0, sender) {
@@ -395,11 +399,10 @@ impl Controller {
     pub fn update_from_message(&mut self, msg: Message, log_messages: &mut VecDeque<String>) {
         let v = msg.value as i32;
         match &msg.tag {
-            // MessageTag::Arbitrary(_) => todo!(),
-            MessageTag::ADC1 => self.current.emission = v,
-            MessageTag::ADC2 => self.current.beam = v,
-            MessageTag::ADC3 => self.current.filament = v,
-            MessageTag::Control(ctrl) => match ctrl {
+            Tag::ADC1 => self.current.emission = v,
+            Tag::ADC2 => self.current.beam = v,
+            Tag::ADC3 => self.current.filament = v,
+            Tag::Control(ctrl) => match ctrl {
                 Control::L2_SET => self.controls.lens2.current_value = v,
                 Control::L13_SET => self.controls.lens1_3.current_value = v,
                 Control::WEH_SET => self.controls.wehnheit.current_value = v,
@@ -412,17 +415,13 @@ impl Controller {
                     log_messages.push_front(format!("Unhandled LEED message: {:?}", msg.tag))
                 }
             },
-            // MessageTag::DigOut => {}
 
-            // MessageTag::Arbitrary(_) => {
             _ => log_messages.push_front(format!("Unhandled LEED message: {:?}", msg.tag)),
         }
     }
 }
 
-
 #[test]
 fn my_thing_is_cool() {
     assert!(1 == 1)
-    
 }

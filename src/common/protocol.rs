@@ -1,8 +1,7 @@
-use log::{error, info};
+use log::{error, warn};
 
 #[derive(Debug, Clone, Copy)]
-pub enum MessageTag {
-    Arbitrary(u8),
+pub enum Tag {
     ADC1,
     ADC2,
     ADC3,
@@ -13,7 +12,7 @@ pub enum MessageTag {
 
 #[derive(Debug)]
 pub struct Message {
-    pub tag: MessageTag,
+    pub tag: Tag,
     pub value: u32,
 }
 
@@ -34,42 +33,24 @@ pub enum Control {
 impl Message {
     fn from_raw(m: RawMessage) -> Option<Message> {
         let tag = match m.id {
-            0x21 => Some(MessageTag::DigOut),
+            0x21 => Some(Tag::DigOut),
 
-            // 0x31 => Some(MessageTag::DAC(1)),
-            // 0x32 => Some(MessageTag::DAC(2)),
-            // 0x33 => Some(MessageTag::DAC(3)),
-            // 0x34 => Some(MessageTag::DAC(4)),
-            // 0x35 => Some(MessageTag::DAC(5)),
-            // 0x36 => Some(MessageTag::DAC(6)),
-            // 0x37 => Some(MessageTag::DAC(7)),
-            // 0x38 => Some(MessageTag::DAC(8)),
-            // 0x39 => Some(MessageTag::DAC(9)),
-            0x31 => Some(MessageTag::Control(Control::L2_SET)),
-            0x32 => Some(MessageTag::Control(Control::WEH_SET)),
-            0x33 => Some(MessageTag::Control(Control::L13_SET)),
-            0x34 => Some(MessageTag::Control(Control::SCR_SET)),
-            0x35 => Some(MessageTag::Control(Control::RET_SET_INT)),
-            0x36 => Some(MessageTag::Control(Control::BEAM_SET_INT)),
-            0x37 => Some(MessageTag::Control(Control::IFIL_SET1)),
-            0x38 => Some(MessageTag::Control(Control::EMI_SET)),
-            0x39 => Some(MessageTag::Control(Control::EMI_MAX)),
+            0x31 => Some(Tag::Control(Control::L2_SET)),
+            0x32 => Some(Tag::Control(Control::WEH_SET)),
+            0x33 => Some(Tag::Control(Control::L13_SET)),
+            0x34 => Some(Tag::Control(Control::SCR_SET)),
+            0x35 => Some(Tag::Control(Control::RET_SET_INT)),
+            0x36 => Some(Tag::Control(Control::BEAM_SET_INT)),
+            0x37 => Some(Tag::Control(Control::IFIL_SET1)),
+            0x38 => Some(Tag::Control(Control::EMI_SET)),
+            0x39 => Some(Tag::Control(Control::EMI_MAX)),
 
-            0x42 => Some(MessageTag::ADC1),
-            // 0x42 => Some(MessageTag::Arbitrary(m.id)),
-            0x45 => Some(MessageTag::ADC2),
-            // 0x45 => Some(MessageTag::Arbitrary(m.id)),
-            0x48 => Some(MessageTag::ADC3),
-            // 0x48 => Some(MessageTag::Arbitrary(m.id)),
-            0x41 => Some(MessageTag::Arbitrary(m.id)),
-            0x43 => Some(MessageTag::Arbitrary(m.id)),
-            0x44 => Some(MessageTag::Arbitrary(m.id)),
-            0x46 => Some(MessageTag::Arbitrary(m.id)),
-            0x47 => Some(MessageTag::Arbitrary(m.id)),
-            0x49 => Some(MessageTag::Arbitrary(m.id)),
+            0x42 => Some(Tag::ADC1),
+            0x45 => Some(Tag::ADC2),
+            0x48 => Some(Tag::ADC3),
 
             _ => {
-                info!("Unhandled message: {:?}", m);
+                warn!("Unhandled message: {:?}", m);
                 None
             }
         }?;
@@ -82,18 +63,18 @@ impl Message {
 
     fn to_raw(&self) -> RawMessage {
         let id = match self.tag {
-            MessageTag::Control(Control::L2_SET) => 0x31,
-            MessageTag::Control(Control::WEH_SET) => 0x32,
-            MessageTag::Control(Control::L13_SET) => 0x33,
-            MessageTag::Control(Control::SCR_SET) => 0x34,
-            MessageTag::Control(Control::RET_SET_INT) => 0x35,
-            MessageTag::Control(Control::BEAM_SET_INT) => 0x36,
-            MessageTag::Control(Control::IFIL_SET1) => 0x37,
-            MessageTag::Control(Control::EMI_SET) => 0x38,
-            MessageTag::Control(Control::EMI_MAX) => 0x39,
-            MessageTag::ADC1 => 0x42,
-            MessageTag::ADC2 => 0x45,
-            MessageTag::ADC3 => 0x48,
+            Tag::Control(Control::L2_SET) => 0x31,
+            Tag::Control(Control::WEH_SET) => 0x32,
+            Tag::Control(Control::L13_SET) => 0x33,
+            Tag::Control(Control::SCR_SET) => 0x34,
+            Tag::Control(Control::RET_SET_INT) => 0x35,
+            Tag::Control(Control::BEAM_SET_INT) => 0x36,
+            Tag::Control(Control::IFIL_SET1) => 0x37,
+            Tag::Control(Control::EMI_SET) => 0x38,
+            Tag::Control(Control::EMI_MAX) => 0x39,
+            Tag::ADC1 => 0x42,
+            Tag::ADC2 => 0x45,
+            Tag::ADC3 => 0x48,
             msg => {
                 error!("Unimplemented: {:?}", msg);
                 0x36
@@ -101,7 +82,7 @@ impl Message {
         };
 
         RawMessage {
-            id: id,
+            id,
             msb: (self.value >> 8) as u8,
             lsb: (self.value & 0xFF) as u8,
         }
