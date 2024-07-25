@@ -29,16 +29,16 @@ impl App {
             info!("Scan started!");
             if fs::metadata("images").is_ok() {
                 info!("Renaming old image dir");
-                if !fs::rename(
+                if fs::rename(
                     "images",
                     format!(
                         "images_{}_{}:{}",
-                        Utc::now().date_naive().to_string(),
-                        Utc::now().time().hour().to_string(),
-                        Utc::now().time().minute().to_string()
+                        Utc::now().date_naive(),
+                        Utc::now().time().hour(),
+                        Utc::now().time().minute()
                     ),
                 )
-                .is_ok()
+                .is_err()
                 {
                     error!("Failed renaming image dir!");
                 }
@@ -52,7 +52,7 @@ impl App {
         let on_scan_step = |step_size, x: i32, y: i32| {
             // info!("Scan step, {}, {}", x, y);
             let image_dir_path = &format!("images/{:.2}", step_size);
-            if !fs::metadata(image_dir_path).is_ok() {
+            if fs::metadata(image_dir_path).is_err() {
                 match fs::create_dir(image_dir_path) {
                     Ok(()) => (),
                     Err(_) => error!("Could not create image directory for step size!"),
@@ -155,11 +155,9 @@ impl App {
     }
 
     pub fn get_scan_pos(&self) -> Option<((i32, i32), (i32, i32))> {
-        if let Some(motors) = &self.motors {
-            Some((motors.get_last_pos(), motors.get_limits()))
-        } else {
-            None
-        }
+        self.motors
+            .as_ref()
+            .map(|motors| (motors.get_last_pos(), motors.get_limits()))
     }
 
     pub fn goto_target_pos(&self) {
@@ -194,9 +192,12 @@ pub fn setup_camera() -> bool {
         return false;
     }
 
-    // if !set_exposure(120) {
-    //     println!("Failed setting exposure!");
-    // }
+    // TODO: Set exposure on start?
+    /*
+    if !set_exposure(120) {
+        println!("Failed setting exposure!");
+    }
+    */
 
-    return true;
+    true
 }

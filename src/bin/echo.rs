@@ -30,7 +30,7 @@ fn sniff(port_name: &str) -> Result<(), serialport::Error> {
     let mut buf: [u8; 6] = [0; 6];
     loop {
         port.read_exact(&mut buf)?;
-        port.write(&buf)?;
+        port.write_all(&buf)?;
         // println!("Message: {:02X?}", buf);
         if let Some(msg) = Message::from_bytes(&buf) {
             println!("Message: {:?}", msg);

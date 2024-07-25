@@ -175,13 +175,16 @@ fn render_ui(frame: &mut Frame, app: &mut App, state: &mut UIState) {
         frame,
         bottom_horiz[1],
         "LEED Messages",
-        state.leed_messages.clone().into(),
+        state.leed_messages.clone(), // TODO: Avoid clone?
     );
 
     render_controller(frame, controller_layout, &app.leed_controller);
 }
 
-fn render_messages(frame: &mut Frame, area: Rect, title: &str, messages: Vec<String>) {
+fn render_messages<T>(frame: &mut Frame, area: Rect, title: &str, messages: T)
+where
+    T: IntoIterator<Item = String>,
+{
     let list =
         List::new(messages).block(Block::default().title(title.green()).borders(Borders::ALL));
 
@@ -201,7 +204,7 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
             ("j/m] Lens 2 Gain", &c.controls.lens2),
             ("[k/,] Suppressor", &c.controls.suppressor),
         ]
-        .map(|(title, value)| format!("{}: {}", title, value.to_string())),
+        .map(|(title, value)| format!("{}: {}", title, value)),
     );
 
     controls_content.extend(

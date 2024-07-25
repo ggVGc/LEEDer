@@ -52,7 +52,7 @@ fn main() -> io::Result<()> {
     while running {
         while let Ok(buf) = soft_listen_out.try_recv() {
             if let Some(msg) = buf_to_msg_string(&buf) {
-                software_messages.push_front(format!("[{}] {}", counters.soft.to_string(), msg));
+                software_messages.push_front(format!("[{}] {}", counters.soft, msg));
             }
             counters.soft += 1;
         }
@@ -63,7 +63,7 @@ fn main() -> io::Result<()> {
             }
 
             if let Some(msg) = buf_to_msg_string(&buf) {
-                leed_messages.push_front(format!("[{}] {}", counters.leed.to_string(), msg));
+                leed_messages.push_front(format!("[{}] {}", counters.leed, msg));
             }
             counters.leed += 1;
         }
@@ -133,7 +133,7 @@ fn ui(
     render_messages(frame, horiz_layout[0], "From: Software", software_messages);
     render_messages(frame, horiz_layout[1], "LEED Controller", leed_messages);
 
-    render_controller(frame, controller_layout, &controller);
+    render_controller(frame, controller_layout, controller);
 }
 
 fn render_messages(frame: &mut Frame, area: Rect, title: &str, messages: Vec<String>) {
@@ -156,7 +156,7 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
             ("Filament", &c.controls.filament),
             ("Screen", &c.controls.screen),
         ]
-        .map(|(title, value)| format!("{}: {}", title, value.to_string())),
+        .map(|(title, value)| format!("{}: {}", title, value)),
     );
 
     controls_content.extend(
@@ -165,7 +165,7 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
             ("Emission current", c.current.emission),
             ("Filament current", c.current.filament),
         ]
-        .map(|(title, value)| format!("{}: {}", title, value.to_string())),
+        .map(|(title, value)| format!("{}: {}", title, value)),
     );
 
     let list = List::new(controls_content)
@@ -175,9 +175,9 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
 }
 
 fn buf_to_msg_string(bytes: &[u8; 6]) -> Option<String> {
-    if let Some(msg) = Message::from_bytes(&bytes) {
+    if let Some(msg) = Message::from_bytes(bytes) {
         match msg.tag {
-            Tag::ADC1 | Tag::ADC2 | Tag::ADC3 => return None,
+            Tag::ADC1 | Tag::ADC2 | Tag::ADC3 => None,
             _ => Some(format!("{:?}", msg)),
         }
     } else {

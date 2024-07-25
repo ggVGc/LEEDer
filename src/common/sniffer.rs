@@ -18,7 +18,7 @@ pub fn monitor(
     if let Ok(mut port) = port {
         thread::spawn(move || loop {
             let mut buf: [u8; 6] = [0; 6];
-            if let Ok(_) = port.read_exact(&mut buf) {
+            if port.read_exact(&mut buf).is_ok() {
                 sender.send(buf).expect("Failed storing message.");
             }
 
@@ -26,9 +26,9 @@ pub fn monitor(
                 port.write_all(&data).expect("Failed sending data");
             }
         });
-        return true;
+        true
     } else {
-        return false;
+        false
     }
 }
 
@@ -51,7 +51,7 @@ pub fn monitor2(
         if let Ok(mut port) = port_res {
             loop {
                 let mut buf: [u8; 6] = [0; 6];
-                if let Ok(_) = port.read_exact(&mut buf) {
+                if port.read_exact(&mut buf).is_ok() {
                     sender.send(buf).expect("Failed storing message.");
                     sender2.send(buf).expect("Failed storing message.");
                 }
