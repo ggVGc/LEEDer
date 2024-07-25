@@ -4,26 +4,25 @@ use log::{error, info};
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::sync::mpsc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 struct Ramp {
-    last_time: SystemTime,
+    last_time: Instant,
 }
 
 impl Ramp {
     pub fn new() -> Self {
         Self {
-            last_time: SystemTime::now(),
+            last_time: Instant::now(),
         }
     }
 
     pub fn ready(&mut self) -> bool {
-        let time_diff = SystemTime::now()
-            .duration_since(self.last_time)
-            .expect("Time went backwards");
+        let now = Instant::now();
+        let time_diff = now.duration_since(self.last_time);
 
         if time_diff > Duration::from_millis(1000) {
-            self.last_time = SystemTime::now();
+            self.last_time = now;
             true
         } else {
             false
