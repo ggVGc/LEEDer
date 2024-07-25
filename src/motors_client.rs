@@ -111,7 +111,6 @@ impl MotorsClient {
                     // TODO: Check specifically for timeout error
                     // Timeout is okay
                     // error!("Read failed"),
-                    ()
                 }
             }
 
@@ -128,7 +127,7 @@ impl MotorsClient {
 
                         // TODO: Remove unwrap //
                         port.write_all(msg.as_bytes()).unwrap();
-                        port.write("\n".as_bytes()).unwrap();
+                        port.write_all("\n".as_bytes()).unwrap();
                     }
                     Command::StartScan => {
                         info!("Starting scan");
@@ -139,7 +138,7 @@ impl MotorsClient {
 
                         // TODO: Remove unwrap //
                         port.write_all(msg.as_bytes()).unwrap();
-                        port.write("\n".as_bytes()).unwrap();
+                        port.write_all("\n".as_bytes()).unwrap();
                     }
 
                     Command::StopScan => {
@@ -151,7 +150,7 @@ impl MotorsClient {
 
                         // TODO: Remove unwrap //
                         port.write_all(msg.as_bytes()).unwrap();
-                        port.write("\n".as_bytes()).unwrap();
+                        port.write_all("\n".as_bytes()).unwrap();
                     }
 
                     Command::SetConf(step_size) => {
@@ -166,7 +165,7 @@ impl MotorsClient {
 
                         // TODO: Remove unwrap //
                         port.write_all(msg.as_bytes()).unwrap();
-                        port.write("\n".as_bytes()).unwrap();
+                        port.write_all("\n".as_bytes()).unwrap();
                     }
                 }
             }
@@ -184,7 +183,7 @@ impl MotorsClient {
     }
 
     pub fn get_last_pos(&self) -> (i32, i32) {
-        return self.last_pos;
+        self.last_pos
     }
 
     pub fn set_pos(&self, x: i32, y: i32) {
@@ -247,10 +246,10 @@ impl MotorsClient {
     }
 
     pub fn get_limits(&self) -> (i32, i32) {
-        return (
+        (
             (DEFAULT_AREA.horiz_range as f32 / self.step_size).floor() as i32,
             (DEFAULT_AREA.vert_range as f32 / self.step_size).floor() as i32,
-        );
+        )
     }
 }
 
@@ -260,6 +259,6 @@ fn _request_pos(port: &mut Box<dyn SerialPort>) -> Result<(), Box<dyn Error>> {
     });
 
     port.write_all(get_pos_msg.to_string().as_bytes())?;
-    port.write("\n".as_bytes())?;
+    port.write_all("\n".as_bytes())?;
     Ok(())
 }

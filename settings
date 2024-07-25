@@ -1,0 +1,10 @@
+beam: 49.7 eV
+Wehn: 0
+lens2 off: 0
+lens2 gain: 0.5
+lens1 off: 11.8
+lens1 gain: 2.0
+filament: 1.835
+emission: 50 uA
+screen: 7 kV
+suppressor: 80%

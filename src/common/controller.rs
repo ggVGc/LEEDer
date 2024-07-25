@@ -89,8 +89,14 @@ fn send_control_message(
         tag: message_tag,
         value: value as u32,
     };
-    let bytes = msg.to_bytes();
-    sender.send(bytes)
+
+    if let Some(bytes) = msg.to_bytes() {
+        sender.send(bytes)
+    } else {
+        // TODO: Report error in suitable way
+        error!("Message not sent. Serialization failed: {:?}", msg);
+        Ok(())
+    }
 }
 
 impl ControlValue {
@@ -232,14 +238,14 @@ pub struct Controls {
 
 impl Controls {
     fn update(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
-        self.beam_energy.update(sender);
-        self.wehnheit.update(sender);
-        self.emission.update(sender);
-        self.filament.update(sender);
-        self.screen.update(sender);
-        self.lens1_3.update(sender);
-        self.lens2.update(sender);
-        self.suppressor.update(sender);
+        self.beam_energy.update(sender).unwrap();
+        self.wehnheit.update(sender).unwrap();
+        self.emission.update(sender).unwrap();
+        self.filament.update(sender).unwrap();
+        self.screen.update(sender).unwrap();
+        self.lens1_3.update(sender).unwrap();
+        self.lens2.update(sender).unwrap();
+        self.suppressor.update(sender).unwrap();
     }
 }
 
@@ -341,33 +347,35 @@ impl Controller {
     pub fn update(&mut self, leed_sender: &mpsc::Sender<[u8; 6]>) {
         let time_diff = SystemTime::now()
             .duration_since(self.last_current_update)
-            .expect("Time went backwards");
+            .unwrap();
+            // .expect("Time went backwards");
+
         if time_diff > Duration::from_secs(1) {
             self.last_current_update = SystemTime::now();
             // TODO: Send defaults in a better way
             match self.defaults_counter {
                 0 => {
-                    self.controls.beam_energy.send_default(leed_sender);
+                    // self.controls.beam_energy.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 1 => {
-                    self.controls.emission.send_default(leed_sender);
+                    // self.controls.emission.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 2 => {
-                    self.controls.suppressor.send_default(leed_sender);
+                    // self.controls.suppressor.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 3 => {
-                    self.controls.screen.send_default(leed_sender);
+                    // self.controls.screen.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 4 => {
-                    self.controls.lens2.send_default(leed_sender);
+                    // self.controls.lens2.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 5 => {
-                    self.controls.lens1_3.send_default(leed_sender);
+                    // self.controls.lens1_3.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 _ => {

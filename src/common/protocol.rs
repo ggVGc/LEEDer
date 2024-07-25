@@ -61,31 +61,31 @@ impl Message {
         })
     }
 
-    fn to_raw(&self) -> RawMessage {
+    fn to_raw(&self) -> Option<RawMessage> {
         let id = match self.tag {
-            Tag::Control(Control::L2_SET) => 0x31,
-            Tag::Control(Control::WEH_SET) => 0x32,
-            Tag::Control(Control::L13_SET) => 0x33,
-            Tag::Control(Control::SCR_SET) => 0x34,
-            Tag::Control(Control::RET_SET_INT) => 0x35,
-            Tag::Control(Control::BEAM_SET_INT) => 0x36,
-            Tag::Control(Control::IFIL_SET1) => 0x37,
-            Tag::Control(Control::EMI_SET) => 0x38,
-            Tag::Control(Control::EMI_MAX) => 0x39,
-            Tag::ADC1 => 0x42,
-            Tag::ADC2 => 0x45,
-            Tag::ADC3 => 0x48,
+            Tag::Control(Control::L2_SET) => Some(0x31),
+            Tag::Control(Control::WEH_SET) => Some(0x32),
+            Tag::Control(Control::L13_SET) => Some(0x33),
+            Tag::Control(Control::SCR_SET) => Some(0x34),
+            Tag::Control(Control::RET_SET_INT) => Some(0x35),
+            Tag::Control(Control::BEAM_SET_INT) => Some(0x36),
+            Tag::Control(Control::IFIL_SET1) => Some(0x37),
+            Tag::Control(Control::EMI_SET) => Some(0x38),
+            Tag::Control(Control::EMI_MAX) => Some(0x39),
+            Tag::ADC1 => Some(0x42),
+            Tag::ADC2 => Some(0x45),
+            Tag::ADC3 => Some(0x48),
             msg => {
                 error!("Unimplemented: {:?}", msg);
-                0x36
+                None
             }
-        };
+        }?;
 
-        RawMessage {
+        Some(RawMessage {
             id,
             msb: (self.value >> 8) as u8,
             lsb: (self.value & 0xFF) as u8,
-        }
+        })
     }
 
     pub fn from_bytes(bytes: &[u8; 6]) -> Option<Message> {
@@ -93,8 +93,9 @@ impl Message {
         Message::from_raw(raw)
     }
 
-    pub fn to_bytes(&self) -> [u8; 6] {
-        self.to_raw().to_bytes()
+    pub fn to_bytes(&self) -> Option<[u8; 6]> {
+        let raw = self.to_raw()?;
+        Some(raw.to_bytes())
     }
 }
 

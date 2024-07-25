@@ -176,9 +176,9 @@ impl App {
 
     pub fn get_step_size(&self) -> f32 {
         if let Some(motors) = &self.motors {
-            return motors.step_size;
+            motors.step_size
         } else {
-            return 0.;
+            0.
         }
     }
 }

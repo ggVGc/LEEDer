@@ -1,5 +1,5 @@
 use leed_controller::common::controller::Controller;
-use leed_controller::common::protocol::{Message, MessageTag};
+use leed_controller::common::protocol::{Message, Tag};
 use leed_controller::common::sniffer::monitor2;
 use std::collections::VecDeque;
 use std::io::{self, stdout};
@@ -177,13 +177,11 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
 fn buf_to_msg_string(bytes: &[u8; 6]) -> Option<String> {
     if let Some(msg) = Message::from_bytes(&bytes) {
         match msg.tag {
-            MessageTag::ADC1 => return None,
-            MessageTag::ADC2 => return None,
-            MessageTag::ADC3 => return None,
-            _ => return Some(format!("{:?}", msg)),
+            Tag::ADC1 | Tag::ADC2 | Tag::ADC3 => return None,
+            _ => Some(format!("{:?}", msg)),
         }
     } else {
-        return Some(format!("Unhandled message: {:02X?}", bytes));
+        Some(format!("Unhandled message: {:02X?}", bytes))
     }
 }
 

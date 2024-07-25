@@ -1,16 +1,14 @@
-use leed_controller::*;
-
-use common::controller::*;
+use common::controller::{Adjustment, Controller};
 use common::protocol::Message;
 use common::sniffer::monitor;
 use leed_controller::application::{setup_camera, App};
+use leed_controller::common;
+use leed_controller::common::protocol::Tag;
 use leed_controller::common::tui_log::{LogWidget, LogWidgetState, TuiLogger};
 use log::{error, info, LevelFilter};
 use std::collections::VecDeque;
 use std::io::{self, stdout};
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
-use std::time::{Duration, SystemTime};
 
 use crossterm::{
     event::{self, Event, KeyCode},
@@ -27,10 +25,9 @@ const LEED_PORT: &str = "/dev/ttyUSB0";
 
 fn main() -> io::Result<()> {
     let mut ui = UIState::new();
-    TuiLogger::init(LevelFilter::Info, ui.log_state.clone()).expect("Could not init logger");
+    TuiLogger::init(LevelFilter::Info, ui.log_state.clone()).expect("Could not initlize logger.");
 
     let mut app = App::new(None);
-
     // TODO: Use for sending commands to leed controller
     let (leed_send, leed_recv) = mpsc::channel();
     let (leed_listener, leed_responses) = mpsc::channel();
@@ -108,13 +105,13 @@ fn handle_ui_events(app: &mut App) -> io::Result<bool> {
 }
 
 fn buf_to_msg_string(bytes: &[u8; 6]) -> Option<String> {
-    if let Some(msg) = Message::from_bytes(&bytes) {
+    if let Some(msg) = Message::from_bytes(bytes) {
         match msg.tag {
-            // MessageTag::ADC(_) => return None,
-            _ => return Some(format!("{:?}", msg)),
+            Tag::ADC1 | Tag::ADC2 | Tag::ADC3 => None,
+            _ => Some(format!("{:?}", msg)),
         }
     } else {
-        return Some(format!("Unhandled message: {:02X?}", bytes));
+        Some(format!("Unhandled message: {:02X?}", bytes))
     }
 }
 
@@ -213,7 +210,7 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
             ("Emission current", c.current.emission),
             ("Filament current", c.current.filament),
         ]
-        .map(|(title, value)| format!("{}: {}", title, value.to_string())),
+        .map(|(title, value)| format!("{}: {}", title, value)),
     );
 
     let list = List::new(controls_content)
