@@ -68,7 +68,7 @@ fn handle_ui_events(app: &mut App) -> io::Result<bool> {
     let poll_time = std::time::Duration::from_millis(50);
     let mut should_continue = true;
 
-    let controls = &mut app.leed_controller.controls;
+    let controls = &mut app.leed_controller.settings;
     let control_inputs = [
         ('a', 'z', &mut controls.beam_energy),
         ('s', 'x', &mut controls.wehnheit),
@@ -195,23 +195,23 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
     let title = "Controls";
     let mut controls_content = Vec::from(
         [
-            ("[a/z] Beam Energy", &c.controls.beam_energy),
-            ("[s/x] Wehnheit", &c.controls.wehnheit),
-            ("[d/c] Emission", &c.controls.emission),
-            ("[f/v] Filament", &c.controls.filament),
-            ("[g/b] Screen", &c.controls.screen),
-            ("[h/n] Lens 1/3 Gain", &c.controls.lens1_3),
-            ("j/m] Lens 2 Gain", &c.controls.lens2),
-            ("[k/,] Suppressor", &c.controls.suppressor),
+            ("[a/z] Beam Energy", &c.settings.beam_energy),
+            ("[s/x] Wehnheit", &c.settings.wehnheit),
+            ("[d/c] Emission", &c.settings.emission),
+            ("[f/v] Filament", &c.settings.filament),
+            ("[g/b] Screen", &c.settings.screen),
+            ("[h/n] Lens 1/3 Gain", &c.settings.lens1_3),
+            ("j/m] Lens 2 Gain", &c.settings.lens2),
+            ("[k/,] Suppressor", &c.settings.suppressor),
         ]
         .map(|(title, value)| format!("{}: {}", title, value)),
     );
 
     controls_content.extend(
         [
-            ("Beam current", c.current.beam),
-            ("Emission current", c.current.emission),
-            ("Filament current", c.current.filament),
+            ("Beam current", c.currents.beam),
+            ("Emission current", c.currents.emission),
+            ("Filament current", c.currents.filament),
         ]
         .map(|(title, value)| format!("{}: {}", title, value)),
     );

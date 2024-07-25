@@ -83,7 +83,7 @@ pub enum Adjustment {
     Down,
 }
 
-fn send_control_message(
+fn send_message(
     message_tag: Tag,
     value: i32,
     sender: &mpsc::Sender<[u8; 6]>,
@@ -151,7 +151,7 @@ impl ControlValue {
         match &mut self.setter {
             ValueSetter::Direct => {
                 if self.target_value != self.current_value {
-                    send_control_message(Tag::Control(self.control), self.target_value, sender)
+                    send_message(Tag::Control(self.control), self.target_value, sender)
                 } else {
                     Ok(())
                 }
@@ -169,7 +169,7 @@ impl ControlValue {
                         };
                         let value = self.next(self.current_value, dir);
                         info!("Ramp {}: {}", self.name, value);
-                        send_control_message(Tag::Control(self.control), value, sender)
+                        send_message(Tag::Control(self.control), value, sender)
                     }
                 } else {
                     Ok(())
@@ -206,17 +206,17 @@ impl ControlValue {
         &self,
         sender: &mpsc::Sender<[u8; 6]>,
     ) -> Result<(), mpsc::SendError<[u8; 6]>> {
-        send_control_message(Tag::Control(self.control), self.default, sender)
+        send_message(Tag::Control(self.control), self.default, sender)
     }
 }
 
-pub struct Current {
+pub struct Currents {
     pub beam: i32,
     pub emission: i32,
     pub filament: i32,
 }
 
-impl Current {
+impl Currents {
     fn new() -> Self {
         Self {
             beam: 0,
@@ -226,7 +226,7 @@ impl Current {
     }
 }
 
-pub struct Controls {
+pub struct Settings {
     pub beam_energy: ControlValue,
     pub wehnheit: ControlValue,
     pub emission: ControlValue,
@@ -237,7 +237,7 @@ pub struct Controls {
     pub suppressor: ControlValue,
 }
 
-impl Controls {
+impl Settings {
     fn update(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
         let controls = vec![
             &mut self.beam_energy,
@@ -258,7 +258,7 @@ impl Controls {
     }
 }
 
-impl Controls {
+impl Settings {
     fn new() -> Self {
         Self {
             filament: ControlValue::new(
@@ -335,8 +335,8 @@ impl Controls {
 }
 
 pub struct Controller {
-    pub current: Current,
-    pub controls: Controls,
+    pub currents: Currents, // Received from controller hardware
+    pub settings: Settings,
     last_current_update: Instant,
     adc_counter: u8,
     defaults_counter: u8,
@@ -345,8 +345,8 @@ pub struct Controller {
 impl Controller {
     pub fn new() -> Self {
         Self {
-            current: Current::new(),
-            controls: Controls::new(),
+            currents: Currents::new(),
+            settings: Settings::new(),
             last_current_update: Instant::now(),
             adc_counter: 0,
             defaults_counter: 0,
@@ -362,51 +362,53 @@ impl Controller {
             // TODO: Send defaults in a better way
             match self.defaults_counter {
                 0 => {
-                    // self.controls.beam_energy.send_default(leed_sender);
+                    self.settings.beam_energy.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 1 => {
-                    // self.controls.emission.send_default(leed_sender);
+                    self.settings.emission.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 2 => {
-                    // self.controls.suppressor.send_default(leed_sender);
+                    self.settings.suppressor.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 3 => {
-                    // self.controls.screen.send_default(leed_sender);
+                    self.settings.screen.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 4 => {
-                    // self.controls.lens2.send_default(leed_sender);
+                    self.settings.lens2.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 5 => {
-                    // self.controls.lens1_3.send_default(leed_sender);
+                    self.settings.lens1_3.send_default(leed_sender);
                     self.defaults_counter += 1;
                 }
                 _ => {
-                    self.update_currents(leed_sender);
+                    self.request_currents(leed_sender);
                 }
             }
         }
 
-        self.controls.update(leed_sender);
+        self.settings.update(leed_sender);
     }
 
-    fn update_currents(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
+    // Sends a request for ADC values.
+    // The hardware controller will echo the present current values back.
+    fn request_currents(&mut self, sender: &mpsc::Sender<[u8; 6]>) {
         let tag = match self.adc_counter {
             0 => Tag::ADC1,
             1 => Tag::ADC2,
             _ => Tag::ADC3,
         };
 
-        match send_control_message(tag, 0, sender) {
+        match send_message(tag, 0, sender) {
             Ok(_) => {
                 self.adc_counter = (self.adc_counter + 1) % 3;
             }
             Err(err) => {
-                error!("Query of current failed: {:?}", err);
+                error!("Request of current failed: {:?}", err);
             }
         }
     }
@@ -414,18 +416,18 @@ impl Controller {
     pub fn update_from_message(&mut self, msg: Message, log_messages: &mut VecDeque<String>) {
         let v = msg.value as i32;
         match &msg.tag {
-            Tag::ADC1 => self.current.emission = v,
-            Tag::ADC2 => self.current.beam = v,
-            Tag::ADC3 => self.current.filament = v,
+            Tag::ADC1 => self.currents.emission = v,
+            Tag::ADC2 => self.currents.beam = v,
+            Tag::ADC3 => self.currents.filament = v,
             Tag::Control(ctrl) => match ctrl {
-                Control::L2_SET => self.controls.lens2.current_value = v,
-                Control::L13_SET => self.controls.lens1_3.current_value = v,
-                Control::WEH_SET => self.controls.wehnheit.current_value = v,
-                Control::SCR_SET => self.controls.screen.current_value = v,
-                Control::RET_SET_INT => self.controls.suppressor.current_value = v,
-                Control::BEAM_SET_INT => self.controls.beam_energy.current_value = v,
-                Control::EMI_SET => self.controls.emission.current_value = v,
-                Control::IFIL_SET1 => self.controls.filament.current_value = v,
+                Control::L2_SET => self.settings.lens2.current_value = v,
+                Control::L13_SET => self.settings.lens1_3.current_value = v,
+                Control::WEH_SET => self.settings.wehnheit.current_value = v,
+                Control::SCR_SET => self.settings.screen.current_value = v,
+                Control::RET_SET_INT => self.settings.suppressor.current_value = v,
+                Control::BEAM_SET_INT => self.settings.beam_energy.current_value = v,
+                Control::EMI_SET => self.settings.emission.current_value = v,
+                Control::IFIL_SET1 => self.settings.filament.current_value = v,
                 Control::EMI_MAX => {
                     log_messages.push_front(format!("Unhandled LEED message: {:?}", msg.tag))
                 }
