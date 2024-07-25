@@ -11,41 +11,31 @@ extern "C" {
 }
 
 pub fn init_camera() -> bool {
-    unsafe {
-        return api_camera_init() != 0;
-    }
+    unsafe { api_camera_init() != 0 }
 }
 
 pub fn start_camera() -> bool {
-    unsafe {
-        return api_camera_start() != 0;
-    }
+    unsafe { api_camera_start() != 0 }
 }
 
 pub fn stop_camera() -> bool {
-    unsafe {
-        return api_camera_stop() != 0;
-    }
+    unsafe { api_camera_stop() != 0 }
 }
 
 pub fn get_image_counts() -> (i32, i32) {
-    unsafe {
-        return (api_camera_good_images(), api_camera_bad_images());
-    }
+    unsafe { (api_camera_good_images(), api_camera_bad_images()) }
 }
 
 pub fn save_image(path: &str) -> bool {
     unsafe {
         if let Ok(c_path) = CString::new(path) {
-            return api_camera_save_file(c_path.as_ptr()) == 1;
+            api_camera_save_file(c_path.as_ptr()) == 1
         } else {
-            return false;
+            false
         }
     }
 }
 
 pub fn set_exposure(milliseconds: i32) -> bool {
-    unsafe {
-        return api_camera_set_exposure(milliseconds) != 0;
-    }
+    unsafe { api_camera_set_exposure(milliseconds) != 0 }
 }
