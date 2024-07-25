@@ -1,5 +1,5 @@
 use std::sync::mpsc;
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 const BAUD_RATE: u32 = 38400;
@@ -8,28 +8,24 @@ pub fn monitor(
     port_name: &str,
     sender: mpsc::Sender<[u8; 6]>,
     receiver: mpsc::Receiver<[u8; 6]>,
-) -> bool {
+) -> serialport::Result<JoinHandle<()>> {
     let timeout = Duration::from_millis(10);
 
-    let port = serialport::new(port_name.to_string(), BAUD_RATE)
+    let mut port = serialport::new(port_name.to_string(), BAUD_RATE)
         .timeout(timeout)
-        .open();
+        .open()?;
 
-    if let Ok(mut port) = port {
-        thread::spawn(move || loop {
-            let mut buf: [u8; 6] = [0; 6];
-            if port.read_exact(&mut buf).is_ok() {
-                sender.send(buf).expect("Failed storing message.");
-            }
+    let handle = thread::spawn(move || loop {
+        let mut buf: [u8; 6] = [0; 6];
+        if port.read_exact(&mut buf).is_ok() {
+            sender.send(buf).expect("Failed storing message.");
+        }
 
-            if let Ok(data) = receiver.try_recv() {
-                port.write_all(&data).expect("Failed sending data");
-            }
-        });
-        true
-    } else {
-        false
-    }
+        if let Ok(data) = receiver.try_recv() {
+            port.write_all(&data).expect("Failed sending data");
+        }
+    });
+    Ok(handle)
 }
 
 pub fn monitor2(

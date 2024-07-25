@@ -147,23 +147,23 @@ fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
     let title = "Controls";
     let mut controls_content = Vec::from(
         [
-            ("Beam Energy", &c.controls.beam_energy),
-            ("Suppressor", &c.controls.suppressor),
-            ("Lens 2 Set", &c.controls.lens2),
-            ("Lens 1/3 Set", &c.controls.lens1_3),
-            ("Wehnheit", &c.controls.wehnheit),
-            ("Emission", &c.controls.emission),
-            ("Filament", &c.controls.filament),
-            ("Screen", &c.controls.screen),
+            ("Beam Energy", &c.settings.beam_energy),
+            ("Suppressor", &c.settings.suppressor),
+            ("Lens 2 Set", &c.settings.lens2),
+            ("Lens 1/3 Set", &c.settings.lens1_3),
+            ("Wehnheit", &c.settings.wehnheit),
+            ("Emission", &c.settings.emission),
+            ("Filament", &c.settings.filament),
+            ("Screen", &c.settings.screen),
         ]
         .map(|(title, value)| format!("{}: {}", title, value)),
     );
 
     controls_content.extend(
         [
-            ("Beam current", c.current.beam),
-            ("Emission current", c.current.emission),
-            ("Filament current", c.current.filament),
+            ("Beam current", c.currents.beam),
+            ("Emission current", c.currents.emission),
+            ("Filament current", c.currents.filament),
         ]
         .map(|(title, value)| format!("{}: {}", title, value)),
     );

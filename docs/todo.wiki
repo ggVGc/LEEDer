@@ -1,6 +1,15 @@
 
-= Changes needed for single-machine deployment =
-- [ ] Talk to tango in some way. Might be easiest to spin up a child python process.
+- [ ] Calculate lens values correctly and add test.
+- [ ] Introduce trait for a Setting. Implement RampedSetting and DirectSetting.
+  - [ ] Put functionality of updating and reading settings in these.
+- [ ] Add tests for ramping of filament current.
+- [ ] Encapsulate ADC requests and values in isolated object.
+- [ ] Implement MotorsClient on top of pyo3, calling pytango.
+- [ ] Make sure filament is ramped down upon exit of application.
+- [ ] Unite interface to include both motor and LEED controls.
+- [ ] Store output images in a better way.
+- [ ] Set up docker image for building and packaging an artifact which can be deployed.
+- [ ] Remove unwrap from tui_log.
 
 
 = Tests =
@@ -16,10 +25,6 @@
 = Delivery =
 - Docker image which builds things for the specific rocky linux distro available at the beamline
 - Contains hacks such as copying libpython
-
-
-
-
 
 
 == OLD ==

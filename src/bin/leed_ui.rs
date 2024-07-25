@@ -8,6 +8,7 @@ use leed_controller::common::tui_log::{LogWidget, LogWidgetState, TuiLogger};
 use log::{error, info, LevelFilter};
 use std::collections::VecDeque;
 use std::io::{self, stdout};
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
 
 use crossterm::{
@@ -27,13 +28,13 @@ fn main() -> io::Result<()> {
     let mut ui = UIState::new();
     TuiLogger::init(LevelFilter::Info, ui.log_state.clone()).expect("Could not initlize logger.");
 
-    let mut app = App::new(None);
     // TODO: Use for sending commands to leed controller
     let (leed_send, leed_recv) = mpsc::channel();
     let (leed_listener, leed_responses) = mpsc::channel();
 
     // TODO: Gracefully exit when thread exits
-    if !monitor(LEED_PORT, leed_listener, leed_recv) {
+    let leed_monitor_handle = monitor(LEED_PORT, leed_listener, leed_recv);
+    if leed_monitor_handle.is_err() {
         error!("LEED communication init failed!");
     }
 
@@ -43,23 +44,44 @@ fn main() -> io::Result<()> {
         error!("Camera init failed!");
     }
 
+    let mut app = App::new(None);
+
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
-    while handle_ui_events(&mut app)? {
-        app.leed_controller.update(&leed_send);
-
-        handle_leed_messages(&leed_responses, &mut app.leed_controller, &mut ui);
-        app.update();
-        ui.update();
-        terminal.draw(|frame| {
-            render_ui(frame, &mut app, &mut ui);
-        })?;
-    }
+    let loop_result = ui_loop(&mut terminal, &mut app, &mut ui, leed_send, leed_responses);
 
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
+
+    if let Err(error) = loop_result {
+        // Print, since it seems logger does not write
+        // to stdout after raw mode has been entered.
+        print!("UI crashed: {:?}", error);
+    }
+
+    todo!("Make sure filament is ramped down.");
+    // Ok(())
+}
+
+fn ui_loop<B: Backend>(
+    terminal: &mut Terminal<B>,
+    app: &mut App,
+    ui: &mut UIState,
+    leed_send: Sender<[u8; 6]>,
+    leed_responses: Receiver<[u8; 6]>,
+) -> io::Result<()> {
+    while handle_ui_events(app)? {
+        app.leed_controller.update(&leed_send);
+
+        handle_leed_messages(&leed_responses, &mut app.leed_controller, ui);
+        app.update();
+        ui.update();
+        terminal.draw(|frame| {
+            render_ui(frame, app, ui);
+        })?;
+    }
 
     Ok(())
 }
