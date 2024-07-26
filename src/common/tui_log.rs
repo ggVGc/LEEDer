@@ -1,3 +1,5 @@
+// Mostly stolen from the example in https://github.com/kegesch/tui-log-rs
+
 use log::{set_max_level, Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
 use ratatui::prelude::*;
 use ratatui::{
@@ -44,17 +46,22 @@ impl<W: Writable + Send + 'static> Log for TuiLogger<W> {
                 record.module_path().unwrap_or_default()
             };
 
-            let mut write_lock = self.writable.lock().unwrap();
-
-            write_lock.write_line(
-                record.level(),
-                format!("{:<5}: [{}] {}", record.level(), target, record.args()).as_str(),
-            );
+            // Lock failure means a thread panicked while holding the lock.
+            // In this case, it's okay to lose messages since we won't be able to
+            // show them in the UI anyway.
+            if let Ok(mut writable) = self.writable.lock() {
+                writable.write_line(
+                    record.level(),
+                    format!("{:<5}: [{}] {}", record.level(), target, record.args()).as_str(),
+                );
+            }
         }
     }
 
     fn flush(&self) {
-        let _ = self.writable.lock().unwrap().flush();
+        if let Ok(mut writable) = self.writable.lock() {
+            writable.flush();
+        }
     }
 }
 
