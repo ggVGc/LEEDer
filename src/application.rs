@@ -1,14 +1,18 @@
 // use camera::{init_camera, start_camera};
 // use common::{controller::Controller, scanner::Scanner};
 
-use std::fs;
+use std::{
+    collections::VecDeque,
+    fs,
+    sync::mpsc::{Receiver, Sender},
+};
 
 use chrono::prelude::*;
 use log::{error, info};
 
 use crate::{
     camera::{init_camera, start_camera},
-    common::controller::Controller,
+    common::{controller::Controller, protocol::Message},
     motors_client::{Callbacks, MotorsClient},
 };
 
@@ -17,13 +21,13 @@ pub struct Position {
     pub y: i32,
 }
 
-pub struct App {
+pub struct Application {
     pub leed_controller: Controller,
-    pub motors: Option<MotorsClient>,
     pub target_pos: Position,
+    motors: Option<MotorsClient>,
 }
 
-impl App {
+impl Application {
     pub fn new(motors_port_name: Option<&str>) -> Self {
         let on_scan_start = || {
             info!("Scan started!");
@@ -104,7 +108,17 @@ impl App {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update<F>(
+        &mut self,
+        leed_send: &Sender<[u8; 6]>,
+        leed_responses: &Receiver<[u8; 6]>,
+        on_message: F,
+    ) where
+        F: FnMut(Message),
+    {
+        self.leed_controller.update(leed_send);
+        handle_leed_messages(leed_responses, &mut self.leed_controller, on_message);
+
         if let Some(motors) = &mut self.motors {
             let old_step_size = motors.step_size;
             let on_new_step_size = |step_size: f32| {
@@ -200,4 +214,20 @@ pub fn setup_camera() -> bool {
     */
 
     true
+}
+
+fn handle_leed_messages<F>(
+    receiver: &Receiver<[u8; 6]>,
+    controller: &mut Controller,
+    mut on_message: F, // ui: &mut UIState,
+) where
+    F: FnMut(Message),
+{
+    while let Ok(buf) = receiver.try_recv() {
+        if let Some(msg) = Message::from_bytes(&buf) {
+            let mut logs = VecDeque::new();
+            controller.update_from_message(msg, &mut logs);
+            on_message(msg);
+        }
+    }
 }

@@ -1,9 +1,7 @@
 use common::controller::{Adjustment, Controller};
-use common::protocol::Message;
 use common::sniffer::monitor;
-use leed_controller::application::{setup_camera, App};
+use leed_controller::application::{setup_camera, Application};
 use leed_controller::common;
-use leed_controller::common::protocol::Tag;
 use leed_controller::common::tui_log::{LogWidget, LogWidgetState, TuiLogger};
 use log::{error, info, LevelFilter};
 use std::collections::VecDeque;
@@ -33,7 +31,7 @@ fn main() -> io::Result<()> {
     let (leed_listener, leed_responses) = mpsc::channel();
 
     // TODO: Gracefully exit when thread exits
-    let leed_monitor_handle = monitor(LEED_PORT, leed_listener, leed_recv);
+    let leed_monitor_handle = monitor(LEED_PORT, vec![leed_listener], leed_recv);
     if leed_monitor_handle.is_err() {
         error!("LEED communication init failed!");
     }
@@ -44,7 +42,7 @@ fn main() -> io::Result<()> {
         error!("Camera init failed!");
     }
 
-    let mut app = App::new(None);
+    let mut app = Application::new(None);
 
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
@@ -67,16 +65,15 @@ fn main() -> io::Result<()> {
 
 fn ui_loop<B: Backend>(
     terminal: &mut Terminal<B>,
-    app: &mut App,
+    app: &mut Application,
     ui: &mut UIState,
     leed_send: Sender<[u8; 6]>,
     leed_responses: Receiver<[u8; 6]>,
 ) -> io::Result<()> {
     while handle_ui_events(app)? {
-        app.leed_controller.update(&leed_send);
-
-        handle_leed_messages(&leed_responses, &mut app.leed_controller, ui);
-        app.update();
+        app.update(&leed_send, &leed_responses, |leed_message| {
+            ui.leed_messages.push_front(format!("{:?}", leed_message));
+        });
         ui.update();
         terminal.draw(|frame| {
             render_ui(frame, app, ui);
@@ -86,7 +83,7 @@ fn ui_loop<B: Backend>(
     Ok(())
 }
 
-fn handle_ui_events(app: &mut App) -> io::Result<bool> {
+fn handle_ui_events(app: &mut Application) -> io::Result<bool> {
     let poll_time = std::time::Duration::from_millis(50);
     let mut should_continue = true;
 
@@ -126,35 +123,7 @@ fn handle_ui_events(app: &mut App) -> io::Result<bool> {
     Ok(should_continue)
 }
 
-fn buf_to_msg_string(bytes: &[u8; 6]) -> Option<String> {
-    if let Some(msg) = Message::from_bytes(bytes) {
-        match msg.tag {
-            Tag::ADC1 | Tag::ADC2 | Tag::ADC3 => None,
-            _ => Some(format!("{:?}", msg)),
-        }
-    } else {
-        Some(format!("Unhandled message: {:02X?}", bytes))
-    }
-}
-
-fn handle_leed_messages(
-    receiver: &mpsc::Receiver<[u8; 6]>,
-    controller: &mut Controller,
-    ui: &mut UIState,
-) {
-    while let Ok(buf) = receiver.try_recv() {
-        if let Some(msg) = Message::from_bytes(&buf) {
-            let mut logs = VecDeque::new();
-            controller.update_from_message(msg, &mut logs);
-        }
-
-        if let Some(msg) = buf_to_msg_string(&buf) {
-            ui.leed_messages.push_front(msg.to_string());
-        }
-    }
-}
-
-fn render_ui(frame: &mut Frame, app: &mut App, state: &mut UIState) {
+fn render_ui(frame: &mut Frame, app: &mut Application, state: &mut UIState) {
     let main_layout = Layout::new(
         Direction::Vertical,
         [

@@ -1,4 +1,5 @@
-use leed_controller::application::{setup_camera, App};
+/*
+use leed_controller::application::{setup_camera, Application};
 use leed_controller::common::tui_log::{LogWidget, LogWidgetState, TuiLogger};
 use log::{error, info, LevelFilter};
 use std::collections::VecDeque;
@@ -23,7 +24,7 @@ fn main() -> io::Result<()> {
     let mut ui = UIState::new();
     TuiLogger::init(LevelFilter::Info, ui.log_state.clone()).expect("Could not init logger");
 
-    let mut app = App::new(Some(MOTORS_PORT));
+    let mut app = Application::new(Some(MOTORS_PORT));
 
     if setup_camera() {
         info!("Camera initialized");
@@ -51,7 +52,7 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn handle_ui_events(app: &mut App) -> io::Result<bool> {
+fn handle_ui_events(app: &mut Application) -> io::Result<bool> {
     let poll_time = std::time::Duration::from_millis(50);
 
     if event::poll(poll_time)? {
@@ -99,7 +100,7 @@ fn handle_ui_events(app: &mut App) -> io::Result<bool> {
     Ok(true)
 }
 
-fn render_ui(frame: &mut Frame, app: &mut App, state: &mut UIState) {
+fn render_ui(frame: &mut Frame, app: &mut Application, state: &mut UIState) {
     let main_layout = Layout::new(
         Direction::Vertical,
         [
@@ -189,4 +190,9 @@ fn edge_inset(area: &Rect, margin: u16) -> Rect {
     inset_area.width -= margin;
 
     inset_area
+}
+*/
+
+fn main() {
+    
 }

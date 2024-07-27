@@ -1,3 +1,4 @@
+/*
 use std::thread;
 use std::time::Duration;
 
@@ -39,4 +40,9 @@ fn main() -> PyResult<()> {
         // fun.call1(py, args)?;
         Ok(())
     })
+}
+*/
+
+fn main() {
+    
 }

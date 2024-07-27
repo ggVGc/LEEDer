@@ -10,7 +10,7 @@ pub enum Tag {
     DigOut, // DAC(u8)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Message {
     pub tag: Tag,
     pub value: u32,

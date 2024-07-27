@@ -1,7 +1,9 @@
-
 - [ ] Calculate lens values correctly and add test.
+- [ ] Add test for setting of initial values upon startup
 - [ ] Introduce trait for a Setting. Implement RampedSetting and DirectSetting.
   - [ ] Put functionality of updating and reading settings in these.
+  - [ ] Also setting of initial values at startup
+- [ ] Add image store, instead of having all that logic in Application
 - [ ] Add tests for ramping of filament current.
 - [ ] Encapsulate ADC requests and values in isolated object.
 - [ ] Implement MotorsClient on top of pyo3, calling pytango.
@@ -9,7 +11,8 @@
 - [ ] Unite interface to include both motor and LEED controls.
 - [ ] Store output images in a better way.
 - [ ] Set up docker image for building and packaging an artifact which can be deployed.
-- [ ] Remove unwrap from tui_log.
+- [ ] Make Python library exposing the interface of Application
+- [X] Remove unwrap from tui_log.
 
 
 = Tests =

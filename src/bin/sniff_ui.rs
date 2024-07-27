@@ -1,6 +1,6 @@
 use leed_controller::common::controller::Controller;
 use leed_controller::common::protocol::{Message, Tag};
-use leed_controller::common::sniffer::monitor2;
+use leed_controller::common::sniffer::monitor;
 use std::collections::VecDeque;
 use std::io::{self, stdout};
 use std::sync::mpsc;
@@ -33,14 +33,14 @@ fn main() -> io::Result<()> {
     let (soft_listen_in, soft_listen_out) = mpsc::channel();
     let (leed_listen_in, leed_listen_out) = mpsc::channel();
 
-    let soft_port = "/dev/ttyUSB0".to_string();
-    let leed_port = "/dev/ttyUSB1".to_string();
-    monitor2(soft_port, leed_send, soft_listen_in, soft_recv);
+    let soft_port = "/dev/ttyUSB0";
+    let leed_port = "/dev/ttyUSB1";
+    monitor(soft_port, vec![leed_send, soft_listen_in], soft_recv).unwrap();
 
     if DUMMY_REPEATER {
         echo_messages(soft_send, leed_listen_in, leed_recv);
     } else {
-        monitor2(leed_port, soft_send, leed_listen_in, leed_recv);
+        monitor(leed_port, vec![soft_send, leed_listen_in], leed_recv).unwrap();
     }
 
     enable_raw_mode()?;
