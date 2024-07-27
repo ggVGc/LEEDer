@@ -1,4 +1,4 @@
-use leed_controller::common::controller::LEEDController;
+use leed_controller::common::leed_controller::LEEDController;
 use leed_controller::common::protocol::{Message, Tag};
 use leed_controller::common::sniffer::monitor;
 use std::collections::VecDeque;

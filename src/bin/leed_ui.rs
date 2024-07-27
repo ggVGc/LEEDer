@@ -1,4 +1,4 @@
-use common::controller::{Adjustment, LEEDController};
+use common::leed_controller::{Adjustment, LEEDController};
 use common::sniffer::monitor;
 use leed_controller::common;
 use leed_controller::common::tui_log::{LogWidget, LogWidgetState, TuiLogger};
