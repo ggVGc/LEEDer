@@ -1,7 +1,6 @@
-/*
-use leed_controller::application::{setup_camera, Application};
 use leed_controller::common::tui_log::{LogWidget, LogWidgetState, TuiLogger};
-use log::{error, info, LevelFilter};
+use leed_controller::scanner::Scanner;
+use log::LevelFilter;
 use std::collections::VecDeque;
 use std::io::{self, stdout};
 use std::sync::{Arc, Mutex};
@@ -22,27 +21,19 @@ const MOTORS_PORT: &str = "/dev/ttyUSB1";
 
 fn main() -> io::Result<()> {
     let mut ui = UIState::new();
-    TuiLogger::init(LevelFilter::Info, ui.log_state.clone()).expect("Could not init logger");
+    TuiLogger::init(LevelFilter::Info, ui.log_state.clone()).expect("Logger init failed");
 
-    let mut app = Application::new(Some(MOTORS_PORT));
-
-    if setup_camera() {
-        info!("Camera initialized");
-    } else {
-        error!("Camera init failed!");
-    }
+    let mut scanner = Scanner::new(MOTORS_PORT).expect("Scanner init failed");
 
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
-    app.on_start();
-
-    while handle_ui_events(&mut app)? {
-        app.update();
+    while handle_ui_events(&mut scanner)? {
+        scanner.update();
         ui.update();
         terminal.draw(|frame| {
-            render_ui(frame, &mut app, &mut ui);
+            render_ui(frame, &scanner, &ui);
         })?;
     }
 
@@ -52,7 +43,7 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn handle_ui_events(app: &mut Application) -> io::Result<bool> {
+fn handle_ui_events(scanner: &mut Scanner) -> io::Result<bool> {
     let poll_time = std::time::Duration::from_millis(50);
 
     if event::poll(poll_time)? {
@@ -63,32 +54,32 @@ fn handle_ui_events(app: &mut Application) -> io::Result<bool> {
                 } else {
                     match key.code {
                         KeyCode::Char('s') => {
-                            app.start_scan();
+                            scanner.start_scan();
                         }
-                        KeyCode::Char('c') => app.stop_scan(),
+                        KeyCode::Char('c') => scanner.stop_scan(),
                         KeyCode::Char('g') => {
-                            app.goto_target_pos();
+                            scanner.goto_target_pos();
                         }
                         KeyCode::Up => {
-                            app.target_pos.y += 1;
+                            scanner.target_pos.y += 1;
                         }
                         KeyCode::Down => {
-                            app.target_pos.y -= 1;
+                            scanner.target_pos.y -= 1;
                         }
                         KeyCode::Left => {
-                            app.target_pos.x -= 1;
+                            scanner.target_pos.x -= 1;
                         }
 
                         KeyCode::Right => {
-                            app.target_pos.x += 1;
+                            scanner.target_pos.x += 1;
                         }
 
                         KeyCode::Char('m') => {
-                            app.adjust_scan_step(0.1);
+                            scanner.adjust_scan_step(0.1);
                         }
 
                         KeyCode::Char('n') => {
-                            app.adjust_scan_step(-0.1);
+                            scanner.adjust_scan_step(-0.1);
                         }
                         _ => (),
                     }
@@ -100,7 +91,7 @@ fn handle_ui_events(app: &mut Application) -> io::Result<bool> {
     Ok(true)
 }
 
-fn render_ui(frame: &mut Frame, app: &mut Application, state: &mut UIState) {
+fn render_ui(frame: &mut Frame, scanner: &Scanner, state: &UIState) {
     let main_layout = Layout::new(
         Direction::Vertical,
         [
@@ -131,37 +122,41 @@ fn render_ui(frame: &mut Frame, app: &mut Application, state: &mut UIState) {
         frame.render_stateful_widget(LogWidget::default(), inset_area, log_state);
     }
 
-    if let Some(((scan_x, scan_y), (max_x, max_y))) = app.get_scan_pos() {
-        let scan_display = Canvas::default()
-            .block(
-                Block::default()
-                    .title(format!(
-                        "[Scan] x: {}, y: {} | [Selector] x: {}, y: {} | Step: {:.2}",
-                        scan_x, scan_y, app.target_pos.x, app.target_pos.y, app.get_step_size()
-                    ))
-                    .borders(Borders::ALL),
-            )
-            .x_bounds([0.0, max_x as f64])
-            .y_bounds([0.0, max_y as f64])
-            .paint(|ctx| {
-                ctx.draw(&Rectangle {
-                    x: app.target_pos.x as f64,
-                    y: app.target_pos.y as f64,
-                    width: 1.,
-                    height: 1.,
-                    color: Color::Red,
-                });
-
-                ctx.draw(&Rectangle {
-                    x: scan_x as f64,
-                    y: scan_y as f64,
-                    width: 1.,
-                    height: 1.,
-                    color: Color::White,
-                });
+    let ((scan_x, scan_y), (max_x, max_y)) = scanner.get_scan_pos();
+    let scan_display = Canvas::default()
+        .block(
+            Block::default()
+                .title(format!(
+                    "[Scan] x: {}, y: {} | [Selector] x: {}, y: {} | Step: {:.2}",
+                    scan_x,
+                    scan_y,
+                    scanner.target_pos.x,
+                    scanner.target_pos.y,
+                    scanner.get_step_size()
+                ))
+                .borders(Borders::ALL),
+        )
+        .x_bounds([0.0, max_x as f64])
+        .y_bounds([0.0, max_y as f64])
+        .paint(|ctx| {
+            ctx.draw(&Rectangle {
+                x: scanner.target_pos.x as f64,
+                y: scanner.target_pos.y as f64,
+                width: 1.,
+                height: 1.,
+                color: Color::Red,
             });
-        frame.render_widget(scan_display, top_horiz[0]);
-    }
+
+            ctx.draw(&Rectangle {
+                x: scan_x as f64,
+                y: scan_y as f64,
+                width: 1.,
+                height: 1.,
+                color: Color::White,
+            });
+        });
+
+    frame.render_widget(scan_display, top_horiz[0]);
 }
 
 struct UIState {
@@ -190,9 +185,4 @@ fn edge_inset(area: &Rect, margin: u16) -> Rect {
     inset_area.width -= margin;
 
     inset_area
-}
-*/
-
-fn main() {
-    
 }

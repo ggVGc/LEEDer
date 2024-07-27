@@ -1,3 +1,4 @@
+- [ ] Scanner as separate application. First delivery.
 - [ ] Calculate lens values correctly and add test.
 - [ ] Add test for setting of initial values upon startup
 - [ ] Introduce trait for a Setting. Implement RampedSetting and DirectSetting.

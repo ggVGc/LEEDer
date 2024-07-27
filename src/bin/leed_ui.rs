@@ -1,6 +1,6 @@
 use common::controller::{Adjustment, Controller};
 use common::sniffer::monitor;
-use leed_controller::application::{setup_camera, Application};
+use leed_controller::application::Application;
 use leed_controller::common;
 use leed_controller::common::tui_log::{LogWidget, LogWidgetState, TuiLogger};
 use log::{error, info, LevelFilter};
@@ -34,12 +34,6 @@ fn main() -> io::Result<()> {
     let leed_monitor_handle = monitor(LEED_PORT, vec![leed_listener], leed_recv);
     if leed_monitor_handle.is_err() {
         error!("LEED communication init failed!");
-    }
-
-    if setup_camera() {
-        info!("Camera initialized");
-    } else {
-        error!("Camera init failed!");
     }
 
     let mut app = Application::new(None);
