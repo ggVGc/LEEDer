@@ -1,6 +1,5 @@
-use common::controller::{Adjustment, Controller};
+use common::controller::{Adjustment, LEEDController};
 use common::sniffer::monitor;
-use leed_controller::application::Application;
 use leed_controller::common;
 use leed_controller::common::tui_log::{LogWidget, LogWidgetState, TuiLogger};
 use log::{error, info, LevelFilter};
@@ -36,16 +35,21 @@ fn main() -> io::Result<()> {
         error!("LEED communication init failed!");
     }
 
-    let mut app = Application::new(None);
+    let mut controller = LEEDController::new();
 
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
-    let loop_result = ui_loop(&mut terminal, &mut app, &mut ui, leed_send, leed_responses);
+    let loop_result = ui_loop(
+        &mut terminal,
+        &mut controller,
+        &mut ui,
+        leed_send,
+        leed_responses,
+    );
 
-    disable_raw_mode()?;
-    stdout().execute(LeaveAlternateScreen)?;
+    controller.graceful_exit();
 
     if let Err(error) = loop_result {
         // Print, since it seems logger does not write
@@ -53,35 +57,38 @@ fn main() -> io::Result<()> {
         print!("UI crashed: {:?}", error);
     }
 
+    disable_raw_mode()?;
+    stdout().execute(LeaveAlternateScreen)?;
+
     todo!("Make sure filament is ramped down.");
     // Ok(())
 }
 
 fn ui_loop<B: Backend>(
     terminal: &mut Terminal<B>,
-    app: &mut Application,
+    controller: &mut LEEDController,
     ui: &mut UIState,
     leed_send: Sender<[u8; 6]>,
     leed_responses: Receiver<[u8; 6]>,
 ) -> io::Result<()> {
-    while handle_ui_events(app)? {
-        app.update(&leed_send, &leed_responses, |leed_message| {
+    while handle_ui_events(controller)? {
+        controller.update(&leed_send, &leed_responses, |leed_message| {
             ui.leed_messages.push_front(format!("{:?}", leed_message));
         });
         ui.update();
         terminal.draw(|frame| {
-            render_ui(frame, app, ui);
+            render_ui(frame, controller, ui);
         })?;
     }
 
     Ok(())
 }
 
-fn handle_ui_events(app: &mut Application) -> io::Result<bool> {
+fn handle_ui_events(controller: &mut LEEDController) -> io::Result<bool> {
     let poll_time = std::time::Duration::from_millis(50);
     let mut should_continue = true;
 
-    let controls = &mut app.leed_controller.settings;
+    let controls = &mut controller.settings;
     let control_inputs = [
         ('a', 'z', &mut controls.beam_energy),
         ('s', 'x', &mut controls.wehnheit),
@@ -117,7 +124,7 @@ fn handle_ui_events(app: &mut Application) -> io::Result<bool> {
     Ok(should_continue)
 }
 
-fn render_ui(frame: &mut Frame, app: &mut Application, state: &mut UIState) {
+fn render_ui(frame: &mut Frame, controller: &LEEDController, state: &UIState) {
     let main_layout = Layout::new(
         Direction::Vertical,
         [
@@ -163,7 +170,7 @@ fn render_ui(frame: &mut Frame, app: &mut Application, state: &mut UIState) {
         state.leed_messages.clone(), // TODO: Avoid clone?
     );
 
-    render_controller(frame, controller_layout, &app.leed_controller);
+    render_controller(frame, controller_layout, controller);
 }
 
 fn render_messages<T>(frame: &mut Frame, area: Rect, title: &str, messages: T)
@@ -176,7 +183,7 @@ where
     frame.render_widget(list, area);
 }
 
-fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
+fn render_controller(frame: &mut Frame, area: Rect, c: &LEEDController) {
     let title = "Controls";
     let mut controls_content = Vec::from(
         [

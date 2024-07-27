@@ -157,12 +157,12 @@ impl Scanner {
 
 pub fn setup_camera() -> bool {
     if !init_camera() {
-        println!("Camera init failed!");
+        error!("Camera init failed!");
         return false;
     }
 
     if !start_camera() {
-        println!("Camera start failed!");
+        error!("Camera start failed!");
         return false;
     }
 

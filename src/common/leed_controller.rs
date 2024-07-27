@@ -3,7 +3,7 @@ use super::protocol::{Control, Message, Tag};
 use log::{error, info};
 use std::collections::VecDeque;
 use std::fmt::Display;
-use std::sync::mpsc;
+use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant};
 
 struct Ramp {
@@ -334,7 +334,7 @@ impl Settings {
     }
 }
 
-pub struct Controller {
+pub struct LEEDController {
     pub currents: Currents, // Received from controller hardware
     pub settings: Settings,
     last_current_update: Instant,
@@ -342,7 +342,13 @@ pub struct Controller {
     defaults_counter: u8,
 }
 
-impl Controller {
+impl Drop for LEEDController {
+    fn drop(&mut self) {
+        self.graceful_exit();
+    }
+}
+
+impl LEEDController {
     pub fn new() -> Self {
         Self {
             currents: Currents::new(),
@@ -353,7 +359,22 @@ impl Controller {
         }
     }
 
-    pub fn update(&mut self, leed_sender: &mpsc::Sender<[u8; 6]>) {
+    pub fn graceful_exit(&self) {
+        todo!("Wait for filament ramp");
+        // for _ in 0..10 {
+        //     println!("Waiting for ramp-down");
+        //     sleep(Duration::from_millis(100));
+        // }
+    }
+
+    pub fn update<F>(
+        &mut self,
+        leed_sender: &mpsc::Sender<[u8; 6]>,
+        leed_responses: &Receiver<[u8; 6]>,
+        on_message: F,
+    ) where
+        F: FnMut(Message),
+    {
         let now = Instant::now();
         let time_diff = now.duration_since(self.last_current_update);
 
@@ -392,6 +413,7 @@ impl Controller {
         }
 
         self.settings.update(leed_sender);
+        self.handle_leed_messages(leed_responses, on_message);
     }
 
     // Sends a request for ADC values.
@@ -434,6 +456,22 @@ impl Controller {
             },
 
             _ => log_messages.push_front(format!("Unhandled LEED message: {:?}", msg.tag)),
+        }
+    }
+
+    fn handle_leed_messages<F>(
+        &mut self,
+        receiver: &Receiver<[u8; 6]>,
+        mut on_message: F, // ui: &mut UIState,
+    ) where
+        F: FnMut(Message),
+    {
+        while let Ok(buf) = receiver.try_recv() {
+            if let Some(msg) = Message::from_bytes(&buf) {
+                let mut logs = VecDeque::new();
+                self.update_from_message(msg, &mut logs);
+                on_message(msg);
+            }
         }
     }
 }

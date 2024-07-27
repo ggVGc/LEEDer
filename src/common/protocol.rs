@@ -61,7 +61,7 @@ impl Message {
         })
     }
 
-    fn to_raw(&self) -> Option<RawMessage> {
+    fn to_raw(self) -> Option<RawMessage> {
         let id = match self.tag {
             Tag::Control(Control::L2_SET) => Some(0x31),
             Tag::Control(Control::WEH_SET) => Some(0x32),
@@ -119,7 +119,7 @@ impl RawMessage {
                 if check == bcc {
                     Some(raw_msg)
                 } else {
-                    println!(
+                    error!(
                         "Invalid checksum for message: {:02X?}. {}:{}",
                         bytes, check, bcc
                     );

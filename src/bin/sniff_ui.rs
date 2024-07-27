@@ -1,4 +1,4 @@
-use leed_controller::common::controller::Controller;
+use leed_controller::common::controller::LEEDController;
 use leed_controller::common::protocol::{Message, Tag};
 use leed_controller::common::sniffer::monitor;
 use std::collections::VecDeque;
@@ -22,7 +22,7 @@ struct Counters {
 }
 
 fn main() -> io::Result<()> {
-    let mut controller = Controller::new();
+    let mut controller = LEEDController::new();
 
     let mut software_messages: VecDeque<String> = VecDeque::with_capacity(20);
     let mut leed_messages: VecDeque<String> = VecDeque::with_capacity(20);
@@ -103,7 +103,7 @@ fn handle_events() -> io::Result<bool> {
 
 fn ui(
     frame: &mut Frame,
-    controller: &Controller,
+    controller: &LEEDController,
     software_messages: Vec<String>,
     leed_messages: Vec<String>,
 ) {
@@ -143,7 +143,7 @@ fn render_messages(frame: &mut Frame, area: Rect, title: &str, messages: Vec<Str
     frame.render_widget(list, area);
 }
 
-fn render_controller(frame: &mut Frame, area: Rect, c: &Controller) {
+fn render_controller(frame: &mut Frame, area: Rect, c: &LEEDController) {
     let title = "Controls";
     let mut controls_content = Vec::from(
         [
