@@ -1,5 +1,6 @@
 - [ ] Scanner as separate application. First delivery.
-- [ ] Expose Scanner as C-lib with python bindings
+- [ ] Implement MotorsClient on top of pyo3 rather than over serial communication (current)
+- [ ] Expose Scanner as C lib with python bindings
 - [ ] Calculate lens values correctly and add test.
 - [ ] Add test for setting of initial values upon startup
 - [ ] Introduce trait for a Setting. Implement RampedSetting and DirectSetting.
@@ -8,9 +9,8 @@
 - [ ] Add image store, instead of having all that logic in Application
 - [ ] Add tests for ramping of filament current.
 - [ ] Encapsulate ADC requests and values in isolated object.
-- [ ] Implement MotorsClient on top of pyo3, calling pytango.
 - [ ] Make sure filament is ramped down upon exit of application.
-- [ ] Unite interface to include both motor and LEED controls.
+- [ ] Unite UI to include both motor and LEED controls.
 - [ ] Store output images in a better way.
 - [ ] Set up docker image for building and packaging an artifact which can be deployed.
 - [ ] Make Python library exposing the interface of Application

@@ -10,6 +10,9 @@ use std::{
     time::Duration,
 };
 
+// Talks to a server over serial, controlling motors for scanning.
+// Server currently implemented in motors_server.py
+
 const BAUD_RATE: u32 = 38400;
 
 const DEFAULT_STEP_SIZE: f32 = 0.2;
