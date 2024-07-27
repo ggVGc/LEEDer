@@ -1,10 +1,10 @@
 import numpy as np
 import time
 
+# Initially based on prepSampleScanner.py (included in this repository for reference)
 
 with_tango = True
 step_time = 0.5
-
 
 class Logger:
     def __init__(self):
@@ -206,7 +206,6 @@ class Scanner:
                 return 0
 
         while self.cur_index_x != x or self.cur_index_y != y:
-
             while x != self.cur_index_x or y != self.cur_index_y:
                 dir_x = dir_from_diff(x - self.cur_index_x)
                 dir_y = dir_from_diff(y - self.cur_index_y)
