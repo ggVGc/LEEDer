@@ -18,6 +18,27 @@ pub struct Scanner {
     motors: MotorsClient,
 }
 
+fn create_image_dir() {
+    if fs::metadata("images").is_ok() {
+        info!("Renaming old image dir");
+        let dir_name = format!(
+            "images_{}_{}:{}",
+            Utc::now().date_naive(),
+            Utc::now().time().hour(),
+            Utc::now().time().minute()
+        );
+
+        if fs::rename("images", dir_name).is_err() {
+            error!("Failed renaming image dir!");
+        }
+    }
+
+    match fs::create_dir("images") {
+        Ok(()) => (),
+        Err(_) => error!("Could not create image directory!"),
+    }
+}
+
 impl Scanner {
     pub fn new(motors_port_name: &str) -> Option<Self> {
         if setup_camera() {
@@ -28,26 +49,7 @@ impl Scanner {
 
         let on_scan_start = || {
             info!("Scan started!");
-            if fs::metadata("images").is_ok() {
-                info!("Renaming old image dir");
-                if fs::rename(
-                    "images",
-                    format!(
-                        "images_{}_{}:{}",
-                        Utc::now().date_naive(),
-                        Utc::now().time().hour(),
-                        Utc::now().time().minute()
-                    ),
-                )
-                .is_err()
-                {
-                    error!("Failed renaming image dir!");
-                }
-            }
-            match fs::create_dir("images") {
-                Ok(()) => (),
-                Err(_) => error!("Could not create image directory!"),
-            }
+            create_image_dir();
         };
 
         let on_scan_step = |step_size, x: i32, y: i32| {
@@ -60,16 +62,16 @@ impl Scanner {
                 }
             }
 
-            let path = format!("{}/{}_{}.bmp", image_dir_path, x, y);
+            let image_path = format!("{}/{}_{}.bmp", image_dir_path, x, y);
 
             // TODO: There's some conflict with multiple calls to NETUSBCAM_SaveToFile, which is used by
             // both save_image and for live_image.bmp, resulting in images often not being saved.
             // Copy last live image instead for now.
 
-            if fs::copy("live_image.bmp", &path).is_ok() {
-                info!("Saved image: {}", path);
+            if fs::copy("live_image.bmp", &image_path).is_ok() {
+                info!("Saved image: {}", image_path);
             } else {
-                error!("Image save failed: {}", path);
+                error!("Image save failed: {}", image_path);
             }
 
             /*

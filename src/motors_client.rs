@@ -208,7 +208,7 @@ impl MotorsClient {
 
     pub fn update<F>(&mut self, on_new_step_size: F)
     where
-        F: FnOnce(f32) -> (),
+        F: FnOnce(f32),
     {
         match self.receiver.try_recv() {
             Ok(Msg::CurrentPos { x, y }) => {
