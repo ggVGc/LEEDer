@@ -1,6 +1,0 @@
-
-- Based on the original software for the LEED controller (find actual name)
-
-= Building =
-- Docker, RockyLinux etc.
-
